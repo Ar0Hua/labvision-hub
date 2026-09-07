@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- c82b1f0：索引任务 Worker 令牌、租约 claim/ack 和失败退避，35 项 Java Agent 测试通过，已同步 GitHub。
+- 本次：DashScope embedding、Qdrant upsert/delete 与可靠 ack 的 Python 索引 Worker，见 agent-service/STEP-23.md。
+
 - ce258d2：图片索引 outbox、触发器和历史图片幂等补事件，32 项 Java Agent 回归通过，已同步 GitHub。
 - 本次：带短期 Worker 令牌、数据库租约、失败退避的 claim/ack 接口，见 agent-service/STEP-22.md。
 
