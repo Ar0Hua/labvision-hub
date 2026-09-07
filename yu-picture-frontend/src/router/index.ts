@@ -81,6 +81,11 @@ const router = createRouter({
       component: SearchPicturePage,
     },
     {
+      path: '/agent',
+      name: '视觉资产 Agent',
+      component: () => import('../pages/AgentWorkbenchPage.vue'),
+    },
+    {
       path: '/add_picture',
       name: '创建图片',
       component: AddPicturePage,

@@ -1,8 +1,11 @@
 import axios from "axios";
+import { message } from 'ant-design-vue'
 
 // 创建axios实例
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8123"
+
 const myAxios = axios.create({
-    baseURL: "http://localhost:8123",
+    baseURL: API_BASE_URL,
     timeout: 60000,
     withCredentials: true,
 });

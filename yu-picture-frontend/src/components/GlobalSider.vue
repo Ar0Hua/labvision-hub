@@ -7,7 +7,7 @@
 </template>
 <script lang="ts" setup>
 import { computed, h, ref, watchEffect } from 'vue'
-import { PictureOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { PictureOutlined, RobotOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import { useLoginUserStore } from '@/stores/useLoginUserStore.ts'
 import { SPACE_TYPE_ENUM } from '@/constants/space.ts'
@@ -22,6 +22,11 @@ const fixedMenuItems = [
     key: '/',
     icon: () => h(PictureOutlined),
     label: '公共图库',
+  },
+  {
+    key: '/agent',
+    label: '视觉资产 Agent',
+    icon: () => h(RobotOutlined),
   },
   {
     key: '/my_space',
@@ -83,7 +88,7 @@ const router = useRouter()
 // 当前要高亮的菜单项
 const current = ref<string[]>([])
 // 监听路由变化，更新高亮菜单项
-router.afterEach((to, from, next) => {
+router.afterEach((to) => {
   current.value = [to.path]
 })
 
