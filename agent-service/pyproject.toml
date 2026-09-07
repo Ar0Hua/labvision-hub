@@ -22,6 +22,7 @@ dev = ["pytest>=8,<9"]
 [project.scripts]
 labvision-qdrant-init = "app.indexing.qdrant_schema:main"
 labvision-index-worker = "app.indexing.worker:main"
+labvision-evaluate-retrieval = "app.evaluation.retrieval:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
