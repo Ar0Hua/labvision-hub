@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 4dcb718：Qdrant collection 与 payload index 可重复初始化，22 项 Python 测试通过，已同步 GitHub。
+- 本次：图片增删改、审核和空间变化的 MySQL 索引 outbox，见 agent-service/STEP-21.md。
+
 - fdc22b5：DashScope 文本向量、Qdrant 范围查询和授权后 RRF，19 项 Python 测试通过，已同步 GitHub。
 - 本次：Qdrant collection 与 payload index 的可重复初始化命令，见 agent-service/STEP-20.md。
 
