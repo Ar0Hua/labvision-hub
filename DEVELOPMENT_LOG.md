@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 3080ffa：Python 受保护任务接收与 Java 状态/事件回调，12 项 Python 测试通过，已同步 GitHub。
+- 本次：权限安全的 Java 图片关键词召回内部工具，见 agent-service/STEP-15.md。
+
 - 2c47df1：事务提交后的 Java→Python 异步任务分发，29 项 Agent 测试通过，已同步 GitHub。
 - 本次：Python 受保护任务接收、重复分发防护及 Java 状态/事件回调，见 agent-service/STEP-14.md。
 
