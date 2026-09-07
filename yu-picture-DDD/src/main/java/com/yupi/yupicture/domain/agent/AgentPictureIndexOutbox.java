@@ -18,6 +18,7 @@ public class AgentPictureIndexOutbox {
     private Integer attemptCount;
     private Date availableAt;
     private Date lockedAt;
+    private String leaseToken;
     private String lastError;
     private String dedupeKey;
     private Date createTime;

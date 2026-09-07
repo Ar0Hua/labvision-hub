@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- ce258d2：图片索引 outbox、触发器和历史图片幂等补事件，32 项 Java Agent 回归通过，已同步 GitHub。
+- 本次：带短期 Worker 令牌、数据库租约、失败退避的 claim/ack 接口，见 agent-service/STEP-22.md。
+
 - 4dcb718：Qdrant collection 与 payload index 可重复初始化，22 项 Python 测试通过，已同步 GitHub。
 - 本次：图片增删改、审核和空间变化的 MySQL 索引 outbox，见 agent-service/STEP-21.md。
 

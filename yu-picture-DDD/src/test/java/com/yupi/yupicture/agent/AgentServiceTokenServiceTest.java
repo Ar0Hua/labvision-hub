@@ -30,6 +30,15 @@ class AgentServiceTokenServiceTest {
         assertThrows(BusinessException.class,()->weak.issue("t","c",1L,null));
     }
 
+    @Test void workerTokenHasSeparatePurposeAndShortLifetime() {
+        AgentServiceTokenService service=service(Instant.parse("2026-09-07T00:00:00Z"));
+        String token=service.issueWorker();
+        assertEquals("picture-index-worker",service.verifyWorker(token).getPurpose());
+        assertThrows(BusinessException.class,()->service.verify(token,"task"));
+        AgentServiceTokenService later=service(Instant.parse("2026-09-07T00:01:01Z"));
+        assertThrows(BusinessException.class,()->later.verifyWorker(token));
+    }
+
     private AgentServiceTokenService service(Instant now) {
         AgentServiceTokenService service=new AgentServiceTokenService();
         ReflectionTestUtils.setField(service,"secret","0123456789abcdef0123456789abcdef");

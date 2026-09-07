@@ -14,6 +14,7 @@ import java.util.*;
 @Service
 public class AgentServiceTokenService {
     private static final long TTL_SECONDS = 300L;
+    private static final long WORKER_TTL_SECONDS = 60L;
     @Value("${agent.internal.secret:${AGENT_INTERNAL_SECRET:}}")
     private String secret;
     private Clock clock = Clock.systemUTC();
@@ -52,6 +53,39 @@ public class AgentServiceTokenService {
                     || context.getIssuedAt() > now + 30 || context.getExpiresAt() - context.getIssuedAt() != TTL_SECONDS) {
                 deny();
             }
+            return context;
+        } catch (RuntimeException error) {
+            deny(); return null;
+        }
+    }
+
+    public String issueWorker() {
+        requireSecret();
+        AgentWorkerContext context = new AgentWorkerContext();
+        context.setPurpose("picture-index-worker");
+        context.setNonce(UUID.randomUUID().toString());
+        context.setIssuedAt(Instant.now(clock).getEpochSecond());
+        context.setExpiresAt(context.getIssuedAt() + WORKER_TTL_SECONDS);
+        String payload = encode(JSONUtil.toJsonStr(context).getBytes(StandardCharsets.UTF_8));
+        return payload + "." + encode(sign(payload));
+    }
+
+    public AgentWorkerContext verifyWorker(String token) {
+        requireSecret();
+        if (token == null) deny();
+        String[] parts = token.split("\\.", -1);
+        if (parts.length != 2) deny();
+        try {
+            byte[] supplied = Base64.getUrlDecoder().decode(parts[1]);
+            if (!MessageDigest.isEqual(sign(parts[0]), supplied)) deny();
+            AgentWorkerContext context = JSONUtil.toBean(
+                    new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8),
+                    AgentWorkerContext.class);
+            long now = Instant.now(clock).getEpochSecond();
+            if (!"picture-index-worker".equals(context.getPurpose())
+                    || context.getNonce() == null || !context.getNonce().matches("[0-9a-f-]{36}")
+                    || context.getExpiresAt() < now || context.getIssuedAt() > now + 30
+                    || context.getExpiresAt() - context.getIssuedAt() != WORKER_TTL_SECONDS) deny();
             return context;
         } catch (RuntimeException error) {
             deny(); return null;
