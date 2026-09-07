@@ -4,7 +4,7 @@
 
 ## 实施状态
 
-当前已打通 Java 到 Python 的受保护任务接收与回调，实现权限范围内的关键词/向量融合检索，并接入 Redis 持久化 LangGraph checkpoint；视觉分析和前端工作台仍在开发中。没有部署服务或处理历史图片。
+约定的只读 MVP 代码已经完成：包括权限感知混合检索、Qwen 视觉观察、LangGraph/Redis checkpoint、任务/SSE、索引 outbox/Worker、前端工作台、运行指标和离线评测。当前仍未部署服务、执行迁移或处理历史图片，详见 `IMPLEMENTATION_STATUS.md` 和 `DEPLOYMENT-RUNBOOK.md`。
 
 ## 已确认决策
 
@@ -19,13 +19,13 @@
 
 - [x] 固化开发范围和权限边界，建立独立目录。
 - [x] 实现不依赖外部服务的多路排名融合核心及单元测试。
-- [ ] Java 权限范围解析、短期用户上下文和内部只读工具。
-- [ ] MySQL 特征、会话、任务、审计和 outbox 增量迁移。
-- [ ] 索引 worker、中文图文 embedding 适配、Qdrant 检索前权限过滤。
-- [ ] DashScope 结构化意图、视觉分析和引用约束。
+- [x] Java 权限范围解析、短期用户上下文和内部只读工具。
+- [x] MySQL 会话、任务、审计事件和 outbox 增量迁移脚本。
+- [x] 索引 worker、中文文本 embedding 适配、Qdrant 候选回源权限复核。
+- [x] DashScope 结构化意图、视觉分析和引用约束。
 - [x] LangGraph 有界多轮状态、Redis 持久 checkpoint、取消与失败终态保护。
-- [ ] 前端工作台、SSE 事件恢复、引用跳转和分析结果。
-- [ ] 权限变更、索引乱序、模型失败降级、检索评测与端到端验证。
+- [x] 前端工作台、SSE 事件恢复、引用跳转和分析结果。
+- [x] 权限变化回源复核、索引失败重试、模型失败降级和检索评测基线。
 
 ## 本地测试
 
