@@ -2,6 +2,7 @@ package com.yupi.yupicture.interfaces.vo.agent;
 
 import com.yupi.yupicture.domain.agent.AgentTask;
 import lombok.Data;
+import java.util.Date;
 
 @Data
 public class AgentTaskVO {
@@ -13,6 +14,8 @@ public class AgentTaskVO {
     private String errorCode;
     private String errorMessage;
     private Integer retryCount;
+    private Date createTime;
+    private Date updateTime;
 
     public static AgentTaskVO from(AgentTask task) {
         AgentTaskVO vo = new AgentTaskVO();
@@ -24,6 +27,8 @@ public class AgentTaskVO {
         vo.setErrorCode(task.getErrorCode());
         vo.setErrorMessage(task.getErrorMessage());
         vo.setRetryCount(task.getRetryCount());
+        vo.setCreateTime(task.getCreateTime());
+        vo.setUpdateTime(task.getUpdateTime());
         return vo;
     }
 }

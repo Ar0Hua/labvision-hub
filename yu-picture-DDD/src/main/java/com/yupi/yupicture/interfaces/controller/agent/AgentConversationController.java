@@ -51,4 +51,8 @@ public class AgentConversationController {
     public BaseResponse<List<AgentMessage>> listMessages(@PathVariable String id,HttpServletRequest request) {
         return ResultUtils.success(messages.list(id,users.getLoginUser(request)));
     }
+    @GetMapping("/{id}/tasks")
+    public BaseResponse<List<AgentTaskVO>> listTasks(@PathVariable String id,HttpServletRequest request) {
+        return ResultUtils.success(tasks.listByConversation(id,users.getLoginUser(request)));
+    }
 }

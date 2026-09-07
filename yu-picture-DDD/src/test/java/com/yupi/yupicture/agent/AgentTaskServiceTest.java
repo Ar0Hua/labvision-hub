@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.util.*;
 
 class AgentTaskServiceTest {
     @Test void submitCreatesPendingTaskForSavedMessage() {
@@ -69,6 +70,22 @@ class AgentTaskServiceTest {
         verifyNoInteractions(mapper);
         when(mapper.selectById(id)).thenReturn(null);
         assertThrows(BusinessException.class, () -> service.get(id, user));
+    }
+
+    @Test void listByConversationChecksOwnerAndReturnsBoundedTaskViews() {
+        AgentTaskService service = service();
+        AgentConversationService conversations = field(service, "conversations");
+        AgentTaskMapper mapper = field(service, "mapper");
+        User user = user(7L);
+        AgentTask task = new AgentTask(); task.setId("task"); task.setConversationId("conversation");
+        when(mapper.selectList(any())).thenReturn(Collections.singletonList(task));
+
+        java.util.List<AgentTaskVO> result = service.listByConversation("conversation", user);
+
+        assertEquals(1, result.size()); assertEquals("task", result.get(0).getTaskId());
+        verify(conversations).requireOwner("conversation", user);
+        verify(mapper).selectList(argThat(query -> query.getSqlSegment().contains("conversationId")
+                && query.getSqlSegment().contains("createTime")));
     }
 
     private AgentTaskService service() {

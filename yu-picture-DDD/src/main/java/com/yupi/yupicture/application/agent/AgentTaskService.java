@@ -8,11 +8,14 @@ import com.yupi.yupicture.infrastructure.exception.ErrorCode;
 import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
 import com.yupi.yupicture.interfaces.vo.agent.AgentTaskVO;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.UUID;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AgentTaskService {
@@ -44,6 +47,16 @@ public class AgentTaskService {
 
     public AgentTaskVO get(String taskId, User user) {
         return AgentTaskVO.from(requireTask(taskId, user));
+    }
+
+    public List<AgentTaskVO> listByConversation(String conversationId, User user) {
+        conversations.requireOwner(conversationId, user);
+        return mapper.selectList(new QueryWrapper<AgentTask>()
+                        .eq("conversationId", conversationId)
+                        .orderByAsc("createTime")
+                        .orderByAsc("id")
+                        .last("LIMIT 50"))
+                .stream().map(AgentTaskVO::from).collect(Collectors.toList());
     }
 
     @Transactional(rollbackFor = Exception.class)
