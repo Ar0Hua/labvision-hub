@@ -4,9 +4,12 @@ from typing import Callable
 
 from app.runtime.java_client import PictureCandidate, TaskContext
 from app.retrieval.intent import IntentParser
+from app.retrieval.fusion import reciprocal_rank_fusion
+from app.retrieval.semantic import SemanticRetriever
 
 
 SearchPictures = Callable[[str, str | None, list[str], int], list[PictureCandidate]]
+AuthorizePictures = Callable[[list[str]], list[PictureCandidate]]
 
 
 @dataclass(frozen=True)
@@ -19,12 +22,28 @@ class ExecutionResult:
 class KeywordSearchExecutor:
     """Baseline real executor backed by Java's permission-scoped MySQL search."""
 
-    def __init__(self, parser: IntentParser) -> None:
+    def __init__(self, parser: IntentParser, semantic: SemanticRetriever | None = None) -> None:
         self._parser = parser
+        self._semantic = semantic
 
-    def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
+    def execute(
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+    ) -> ExecutionResult:
         intent = self._parser.parse(context.query)
-        candidates = search(intent.searchText, intent.category, intent.tags, intent.limit)
+        keyword = search(intent.searchText, intent.category, intent.tags, intent.limit)
+        metadata = {picture.pictureId: picture for picture in keyword}
+        channels = {"keyword": [picture.pictureId for picture in keyword]}
+        if self._semantic and self._semantic.enabled:
+            try:
+                scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
+                vector_ids = self._semantic.search(intent.searchText, scope_key, 20)
+                authorized = authorize(vector_ids)
+                metadata.update({picture.pictureId: picture for picture in authorized})
+                channels["vector"] = [picture.pictureId for picture in authorized]
+            except Exception:
+                pass
+        ranking = reciprocal_rank_fusion(channels, top_k=intent.limit)
+        candidates = [metadata[item.picture_id] for item in ranking if item.picture_id in metadata]
         citations = [
             {
                 "pictureId": picture.pictureId,

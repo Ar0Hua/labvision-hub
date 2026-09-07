@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- f41e4c6：外部索引候选 Java 回源鉴权，32 项 Java Agent 测试通过，已同步 GitHub。
+- 本次：DashScope 文本向量、Qdrant 范围过滤及授权后 RRF 融合，见 agent-service/STEP-19.md。
+
 - bdb07e2：DashScope 结构化检索意图及故障降级，16 项 Python 测试通过，已同步 GitHub。
 - 本次：Qdrant 等外部索引候选的 Java 回源逐项鉴权，见 agent-service/STEP-18.md。
 

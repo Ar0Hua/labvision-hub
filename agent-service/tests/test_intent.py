@@ -9,7 +9,8 @@ from app.retrieval.intent import IntentParser
 
 def settings(api_key: str = "key") -> Settings:
     return Settings("http://java", "x" * 32, 10, api_key, "https://dashscope.example/v1",
-                    "qwen-plus", 20, "http://qdrant", "pictures")
+                    "qwen-plus", 20, "text-embedding-v4", 1024,
+                    "http://qdrant", "", "pictures", 5)
 
 
 class IntentParserTests(unittest.TestCase):

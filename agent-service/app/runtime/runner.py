@@ -4,8 +4,11 @@ from typing import Protocol
 
 from app.config import Settings
 from app.runtime.java_client import JavaTaskClient, TaskContext
-from app.retrieval.keyword_executor import ExecutionResult, KeywordSearchExecutor, SearchPictures
+from app.retrieval.keyword_executor import (
+    AuthorizePictures, ExecutionResult, KeywordSearchExecutor, SearchPictures,
+)
 from app.retrieval.intent import IntentParser
+from app.retrieval.semantic import SemanticRetriever
 from app.security.service_token import ServiceContext
 
 
@@ -14,12 +17,16 @@ class ExecutorUnavailable(RuntimeError):
 
 
 class TaskExecutor(Protocol):
-    def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
+    def execute(
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+    ) -> ExecutionResult:
         ...
 
 
 class DisabledExecutor:
-    def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
+    def execute(
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+    ) -> ExecutionResult:
         raise ExecutorUnavailable("retrieval executor is not configured")
 
 
@@ -30,7 +37,10 @@ class TaskRunner:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
-        return cls(JavaTaskClient(settings), KeywordSearchExecutor(IntentParser(settings)))
+        return cls(
+            JavaTaskClient(settings),
+            KeywordSearchExecutor(IntentParser(settings), SemanticRetriever(settings)),
+        )
 
     def run(self, signed: ServiceContext, token: str) -> None:
         running = False
@@ -50,6 +60,7 @@ class TaskRunner:
                 lambda text, category, tags, limit: self.java.search_pictures(
                     signed.task_id, token, search_text=text, category=category, tags=tags, limit=limit
                 ),
+                lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
             )
             self.java.append_event(
                 signed.task_id, token, "tool_result",

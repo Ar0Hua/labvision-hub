@@ -11,8 +11,12 @@ class Settings:
     dashscope_base_url: str
     chat_model: str
     model_timeout_seconds: float
+    embedding_model: str
+    embedding_dimensions: int
     qdrant_url: str
+    qdrant_api_key: str
     qdrant_collection: str
+    qdrant_timeout_seconds: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -29,6 +33,10 @@ class Settings:
             ).rstrip("/"),
             chat_model=os.getenv("AGENT_CHAT_MODEL", "qwen-plus"),
             model_timeout_seconds=float(os.getenv("AGENT_MODEL_TIMEOUT_SECONDS", "20")),
+            embedding_model=os.getenv("AGENT_EMBEDDING_MODEL", "text-embedding-v4"),
+            embedding_dimensions=int(os.getenv("AGENT_EMBEDDING_DIMENSIONS", "1024")),
             qdrant_url=os.getenv("QDRANT_URL", "http://127.0.0.1:6333").rstrip("/"),
+            qdrant_api_key=os.getenv("QDRANT_API_KEY", ""),
             qdrant_collection=os.getenv("QDRANT_COLLECTION", "labvision_picture_v1"),
+            qdrant_timeout_seconds=float(os.getenv("QDRANT_TIMEOUT_SECONDS", "5")),
         )

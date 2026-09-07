@@ -91,6 +91,26 @@ class JavaTaskClient:
             raise JavaGatewayError("Java picture search returned invalid data")
         return [PictureCandidate.model_validate(item) for item in data]
 
+    def authorize_pictures(
+        self, task_id: str, token: str, picture_ids: list[str]
+    ) -> list[PictureCandidate]:
+        integer_ids = []
+        for picture_id in picture_ids[:20]:
+            if not picture_id.isdigit() or int(picture_id) < 1 or int(picture_id) > 9_223_372_036_854_775_807:
+                raise JavaGatewayError("external index returned invalid picture ID")
+            integer_ids.append(int(picture_id))
+        if not integer_ids:
+            return []
+        data = self._request(
+            "POST",
+            f"/agent/internal/tasks/{task_id}/pictures/details",
+            token,
+            json={"pictureIds": integer_ids},
+        )
+        if not isinstance(data, list):
+            raise JavaGatewayError("Java picture authorization returned invalid data")
+        return [PictureCandidate.model_validate(item) for item in data]
+
     def close(self) -> None:
         if self._owns_client:
             self._client.close()

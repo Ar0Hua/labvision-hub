@@ -45,8 +45,12 @@ def settings() -> Settings:
         dashscope_base_url="https://dashscope.example/v1",
         chat_model="qwen-plus",
         model_timeout_seconds=20,
+        embedding_model="text-embedding-v4",
+        embedding_dimensions=1024,
         qdrant_url="http://qdrant",
+        qdrant_api_key="",
         qdrant_collection="pictures",
+        qdrant_timeout_seconds=5,
     )
 
 
@@ -59,12 +63,12 @@ class RecordingRunner:
 
 
 class SuccessfulExecutor:
-    def execute(self, context: TaskContext, search) -> ExecutionResult:
+    def execute(self, context: TaskContext, search, authorize) -> ExecutionResult:
         return ExecutionResult("找到实验图像", [{"pictureId": "1", "name": "图像", "category": None}], 1)
 
 
 class MissingExecutor:
-    def execute(self, context: TaskContext, search) -> ExecutionResult:
+    def execute(self, context: TaskContext, search, authorize) -> ExecutionResult:
         raise ExecutorUnavailable()
 
 
