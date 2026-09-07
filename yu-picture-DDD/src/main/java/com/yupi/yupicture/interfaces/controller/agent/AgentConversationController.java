@@ -2,7 +2,10 @@ package com.yupi.yupicture.interfaces.controller.agent;
 
 import com.yupi.yupicture.application.agent.AgentConversationService;
 import com.yupi.yupicture.application.agent.AgentPictureService;
+import com.yupi.yupicture.application.agent.AgentMessageService;
+import com.yupi.yupicture.domain.agent.AgentMessage;
 import com.yupi.yupicture.interfaces.dto.agent.AgentConversationCreateRequest;
+import com.yupi.yupicture.interfaces.dto.agent.AgentMessageCreateRequest;
 import com.yupi.yupicture.application.service.UserApplicationService;
 import com.yupi.yupicture.infrastructure.common.BaseResponse;
 import com.yupi.yupicture.infrastructure.common.ResultUtils;
@@ -17,6 +20,7 @@ public class AgentConversationController {
     @Resource private UserApplicationService users;
     @Resource private AgentConversationService conversations;
     @Resource private AgentPictureService pictures;
+    @Resource private AgentMessageService messages;
 
     @PostMapping
     public BaseResponse<Map<String, String>> create(
@@ -29,5 +33,13 @@ public class AgentConversationController {
     public BaseResponse<List<Map<String, Object>>> details(@PathVariable String id,
             @RequestBody List<Long> pictureIds, HttpServletRequest request) {
         return ResultUtils.success(pictures.details(id, pictureIds, users.getLoginUser(request)));
+    }
+    @PostMapping("/{id}/messages")
+    public BaseResponse<AgentMessage> createMessage(@PathVariable String id,@RequestBody AgentMessageCreateRequest body,HttpServletRequest request) {
+        return ResultUtils.success(messages.createUserMessage(id,body==null?null:body.getContent(),users.getLoginUser(request)));
+    }
+    @GetMapping("/{id}/messages")
+    public BaseResponse<List<AgentMessage>> listMessages(@PathVariable String id,HttpServletRequest request) {
+        return ResultUtils.success(messages.list(id,users.getLoginUser(request)));
     }
 }
