@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import time
 from typing import Protocol
 
 from app.config import Settings
@@ -19,6 +20,10 @@ class ExecutorUnavailable(RuntimeError):
 
 
 class TaskCancelled(RuntimeError):
+    pass
+
+
+class TaskDeadlineExceeded(RuntimeError):
     pass
 
 
@@ -43,6 +48,7 @@ class TaskRunner:
     java: JavaTaskClient
     executor: TaskExecutor
     vision: VisionAnalyzer | None = None
+    timeout_seconds: float = 120
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -51,10 +57,16 @@ class TaskRunner:
             JavaTaskClient(settings),
             RedisCheckpointWorkflow(executor, settings),
             VisionAnalyzer(settings),
+            settings.task_timeout_seconds,
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:
         running = False
+        deadline = time.monotonic() + self.timeout_seconds
+        def check_active() -> None:
+            if time.monotonic() >= deadline:
+                raise TaskDeadlineExceeded()
+            self._ensure_active(signed, token)
         try:
             context = self.java.get_context(signed.task_id, token)
             self._assert_scope(context, signed)
@@ -76,9 +88,9 @@ class TaskRunner:
                     signed.task_id, token, search_text=text, category=category, tags=tags, limit=limit
                 ),
                 lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
-                lambda: self._ensure_active(signed, token),
+                check_active,
             )
-            self._ensure_active(signed, token)
+            check_active()
             self.java.append_event(
                 signed.task_id, token, "tool_result",
                 json.dumps({"tool": "picture_keyword_search", "count": result.candidate_count},
@@ -89,8 +101,8 @@ class TaskRunner:
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
-            result = self._add_visual_analysis(result, context, signed, token)
-            self._ensure_active(signed, token)
+            result = self._add_visual_analysis(result, context, signed, token, check_active)
+            check_active()
             self.java.append_event(
                 signed.task_id,
                 token,
@@ -102,6 +114,12 @@ class TaskRunner:
             )
         except TaskCancelled:
             pass
+        except TaskDeadlineExceeded:
+            if running:
+                self._try_fail(
+                    signed.task_id, token, status="FAILED", stage="TIMEOUT",
+                    error_code="TASK_TIMEOUT", error_message="Agent 任务超过总执行时间限制",
+                )
         except ExecutorUnavailable:
             if running:
                 self._try_fail(
@@ -126,7 +144,8 @@ class TaskRunner:
             self.java.close()
 
     def _add_visual_analysis(
-        self, result: ExecutionResult, context: TaskContext, signed: ServiceContext, token: str
+        self, result: ExecutionResult, context: TaskContext, signed: ServiceContext, token: str,
+        check_active: CheckActive,
     ) -> ExecutionResult:
         if not self.vision or not self.vision.enabled or not result.citations:
             return result
@@ -141,7 +160,7 @@ class TaskRunner:
             json.dumps({"tool": "vision_analysis", "count": len(picture_ids)}, separators=(",", ":")),
         )
         inputs = self.java.get_vision_inputs(signed.task_id, token, picture_ids)
-        self._ensure_active(signed, token)
+        check_active()
         analysis = self.vision.analyze(context.query, inputs)
         if not analysis:
             return result

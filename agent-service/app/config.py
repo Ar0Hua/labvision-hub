@@ -21,6 +21,7 @@ class Settings:
     checkpoint_ttl_minutes: int = 1440
     vision_model: str = ""
     max_vision_pictures: int = 4
+    task_timeout_seconds: float = 120
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -49,4 +50,5 @@ class Settings:
             checkpoint_ttl_minutes=int(os.getenv("AGENT_CHECKPOINT_TTL_MINUTES", "1440")),
             vision_model=os.getenv("AGENT_VISION_MODEL", "").strip(),
             max_vision_pictures=min(8, max(1, int(os.getenv("AGENT_MAX_VISION_PICTURES", "4")))),
+            task_timeout_seconds=max(10, float(os.getenv("AGENT_TASK_TIMEOUT_SECONDS", "120"))),
         )

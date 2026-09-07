@@ -4,6 +4,7 @@ import hmac
 import json
 import time
 import unittest
+from unittest.mock import patch
 
 import httpx
 from fastapi.testclient import TestClient
@@ -199,6 +200,24 @@ class TaskRuntimeTests(unittest.TestCase):
         tools = [json.loads(body["payloadJson"])["tool"] for body in event_bodies
                  if body.get("eventType") == "tool_result"]
         self.assertEqual(tools, ["picture_keyword_search", "vision_analysis"])
+
+    def test_total_deadline_has_distinct_failure_code(self):
+        bodies = []
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "GET":
+                data = {"taskId": TASK_ID, "conversationId": "conversation", "userId": "7",
+                        "spaceId": "9", "query": "找实验图", "status": "PENDING"}
+            else:
+                bodies.append(json.loads(request.content)); data = True
+            return httpx.Response(200, json={"code": 0, "data": data})
+
+        client = httpx.Client(base_url="http://java/api", transport=httpx.MockTransport(handler))
+        with patch("app.runtime.runner.time.monotonic", side_effect=[0, 11]):
+            TaskRunner(JavaTaskClient(settings(), client), SuccessfulExecutor(), timeout_seconds=10).run(
+                self._context(), "token")
+        states = [body for body in bodies if "status" in body]
+        self.assertEqual(states[-1]["status"], "FAILED")
+        self.assertEqual(states[-1]["errorCode"], "TASK_TIMEOUT")
 
     def _context(self):
         from app.security.service_token import ServiceContext
