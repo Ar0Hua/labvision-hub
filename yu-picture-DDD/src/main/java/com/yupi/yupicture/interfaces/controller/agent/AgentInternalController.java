@@ -3,6 +3,7 @@ package com.yupi.yupicture.interfaces.controller.agent;
 import com.yupi.yupicture.application.agent.AgentInternalTaskService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureSearchService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureDetailsService;
+import com.yupi.yupicture.application.agent.AgentInternalPictureVisionService;
 import com.yupi.yupicture.infrastructure.common.*;
 import com.yupi.yupicture.interfaces.dto.agent.*;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ public class AgentInternalController {
     @Resource private AgentInternalTaskService internal;
     @Resource private AgentInternalPictureSearchService pictureSearch;
     @Resource private AgentInternalPictureDetailsService pictureDetails;
+    @Resource private AgentInternalPictureVisionService pictureVision;
 
     @GetMapping("/{id}/context")
     public BaseResponse<Map<String,Object>> context(@PathVariable String id,
@@ -45,6 +47,13 @@ public class AgentInternalController {
             @RequestHeader("Authorization") String authorization,
             @RequestBody AgentInternalPictureIdsRequest body) {
         return ResultUtils.success(pictureDetails.details(authorization,id,
+                body == null ? null : body.getPictureIds()));
+    }
+    @PostMapping("/{id}/pictures/vision-inputs")
+    public BaseResponse<List<Map<String,Object>>> pictureVisionInputs(@PathVariable String id,
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody AgentInternalPictureIdsRequest body) {
+        return ResultUtils.success(pictureVision.inputs(authorization,id,
                 body == null ? null : body.getPictureIds()));
     }
 }

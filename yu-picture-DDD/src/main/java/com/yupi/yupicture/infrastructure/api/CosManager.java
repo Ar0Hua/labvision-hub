@@ -12,7 +12,10 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.io.File;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Component
@@ -44,6 +47,33 @@ public class CosManager {
     public COSObject getObject(String key) {
         GetObjectRequest getObjectRequest = new GetObjectRequest(cosClientConfig.getBucket(), key);
         return cosClient.getObject(getObjectRequest);
+    }
+
+    /**
+     * 为站内 COS 对象生成短期只读地址。调用方必须先完成业务权限校验。
+     */
+    public String generatePresignedGetUrl(String storedUrl, int ttlSeconds) {
+        if (ttlSeconds < 30 || ttlSeconds > 300) {
+            throw new IllegalArgumentException("签名地址有效期必须为 30 至 300 秒");
+        }
+        try {
+            URI objectUri = URI.create(storedUrl);
+            URI configuredHost = URI.create(cosClientConfig.getHost());
+            if (objectUri.getHost() == null || configuredHost.getHost() == null
+                    || !objectUri.getHost().equalsIgnoreCase(configuredHost.getHost())) {
+                throw new IllegalArgumentException("只能签发当前 COS 域名下的对象");
+            }
+            String key = objectUri.getPath();
+            if (key == null || key.length() < 2 || key.contains("..")) {
+                throw new IllegalArgumentException("非法 COS 对象路径");
+            }
+            URL signed = cosClient.generatePresignedUrl(
+                    cosClientConfig.getBucket(), key.substring(1),
+                    new Date(System.currentTimeMillis() + ttlSeconds * 1000L));
+            return signed.toString();
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("无法为图片生成安全访问地址", exception);
+        }
     }
 
     /**
