@@ -5,6 +5,7 @@ from typing import Protocol
 from app.config import Settings
 from app.runtime.java_client import JavaTaskClient, TaskContext
 from app.retrieval.keyword_executor import ExecutionResult, KeywordSearchExecutor, SearchPictures
+from app.retrieval.intent import IntentParser
 from app.security.service_token import ServiceContext
 
 
@@ -29,7 +30,7 @@ class TaskRunner:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
-        return cls(JavaTaskClient(settings), KeywordSearchExecutor())
+        return cls(JavaTaskClient(settings), KeywordSearchExecutor(IntentParser(settings)))
 
     def run(self, signed: ServiceContext, token: str) -> None:
         running = False
@@ -46,8 +47,8 @@ class TaskRunner:
             )
             result = self.executor.execute(
                 context,
-                lambda text, limit: self.java.search_pictures(
-                    signed.task_id, token, search_text=text, limit=limit
+                lambda text, category, tags, limit: self.java.search_pictures(
+                    signed.task_id, token, search_text=text, category=category, tags=tags, limit=limit
                 ),
             )
             self.java.append_event(

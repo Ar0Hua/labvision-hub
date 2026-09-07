@@ -78,13 +78,14 @@ class JavaTaskClient:
         )
 
     def search_pictures(
-        self, task_id: str, token: str, *, search_text: str, limit: int = 10
+        self, task_id: str, token: str, *, search_text: str, category: str | None = None,
+        tags: list[str] | None = None, limit: int = 10
     ) -> list[PictureCandidate]:
         data = self._request(
             "POST",
             f"/agent/internal/tasks/{task_id}/pictures/search",
             token,
-            json={"searchText": search_text, "limit": limit},
+            json={"searchText": search_text, "category": category, "tags": tags or [], "limit": limit},
         )
         if not isinstance(data, list):
             raise JavaGatewayError("Java picture search returned invalid data")

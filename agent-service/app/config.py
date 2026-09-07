@@ -8,6 +8,9 @@ class Settings:
     service_secret: str
     java_timeout_seconds: float
     dashscope_api_key: str
+    dashscope_base_url: str
+    chat_model: str
+    model_timeout_seconds: float
     qdrant_url: str
     qdrant_collection: str
 
@@ -21,6 +24,11 @@ class Settings:
             service_secret=secret,
             java_timeout_seconds=float(os.getenv("JAVA_REQUEST_TIMEOUT_SECONDS", "10")),
             dashscope_api_key=os.getenv("DASHSCOPE_API_KEY", ""),
+            dashscope_base_url=os.getenv(
+                "DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            ).rstrip("/"),
+            chat_model=os.getenv("AGENT_CHAT_MODEL", "qwen-plus"),
+            model_timeout_seconds=float(os.getenv("AGENT_MODEL_TIMEOUT_SECONDS", "20")),
             qdrant_url=os.getenv("QDRANT_URL", "http://127.0.0.1:6333").rstrip("/"),
             qdrant_collection=os.getenv("QDRANT_COLLECTION", "labvision_picture_v1"),
         )

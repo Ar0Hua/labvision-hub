@@ -3,9 +3,10 @@ import json
 from typing import Callable
 
 from app.runtime.java_client import PictureCandidate, TaskContext
+from app.retrieval.intent import IntentParser
 
 
-SearchPictures = Callable[[str, int], list[PictureCandidate]]
+SearchPictures = Callable[[str, str | None, list[str], int], list[PictureCandidate]]
 
 
 @dataclass(frozen=True)
@@ -18,11 +19,12 @@ class ExecutionResult:
 class KeywordSearchExecutor:
     """Baseline real executor backed by Java's permission-scoped MySQL search."""
 
+    def __init__(self, parser: IntentParser) -> None:
+        self._parser = parser
+
     def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
-        query = context.query.strip()
-        if not query:
-            raise ValueError("query must not be blank")
-        candidates = search(query[:100], 10)
+        intent = self._parser.parse(context.query)
+        candidates = search(intent.searchText, intent.category, intent.tags, intent.limit)
         citations = [
             {
                 "pictureId": picture.pictureId,

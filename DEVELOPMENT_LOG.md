@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 761b00e：Python 权限安全关键词执行器，14 项 Python 测试通过，已同步 GitHub。
+- 本次：DashScope 结构化检索意图与无密钥/故障降级，见 agent-service/STEP-17.md。
+
 - 5f83b37：权限安全的 Java 图片关键词召回，31 项 Java Agent 测试通过，已同步 GitHub。
 - 本次：Python 默认关键词检索执行器和可恢复的工具/引用/答案事件，见 agent-service/STEP-16.md。
 

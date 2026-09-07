@@ -42,6 +42,9 @@ def settings() -> Settings:
         service_secret=SECRET,
         java_timeout_seconds=10,
         dashscope_api_key="",
+        dashscope_base_url="https://dashscope.example/v1",
+        chat_model="qwen-plus",
+        model_timeout_seconds=20,
         qdrant_url="http://qdrant",
         qdrant_collection="pictures",
     )
