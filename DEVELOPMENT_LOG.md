@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 2a56c38：Java 短期服务上下文，22 项 Agent 测试通过，已同步 GitHub。
+- 本次：Python FastAPI 配置与兼容的短期令牌验签，见 agent-service/STEP-11.md。
+
 - ba78e25：可恢复 SSE 任务事件流，20 项测试通过，已同步 GitHub。
 - 本次：绑定任务/会话/用户/空间的 5 分钟 HMAC 服务上下文，见 agent-service/STEP-10.md。
 
