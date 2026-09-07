@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- bdb07e2：DashScope 结构化检索意图及故障降级，16 项 Python 测试通过，已同步 GitHub。
+- 本次：Qdrant 等外部索引候选的 Java 回源逐项鉴权，见 agent-service/STEP-18.md。
+
 - 761b00e：Python 权限安全关键词执行器，14 项 Python 测试通过，已同步 GitHub。
 - 本次：DashScope 结构化检索意图与无密钥/故障降级，见 agent-service/STEP-17.md。
 

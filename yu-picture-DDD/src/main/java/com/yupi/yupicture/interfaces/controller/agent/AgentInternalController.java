@@ -2,6 +2,7 @@ package com.yupi.yupicture.interfaces.controller.agent;
 
 import com.yupi.yupicture.application.agent.AgentInternalTaskService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureSearchService;
+import com.yupi.yupicture.application.agent.AgentInternalPictureDetailsService;
 import com.yupi.yupicture.infrastructure.common.*;
 import com.yupi.yupicture.interfaces.dto.agent.*;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import java.util.List;
 public class AgentInternalController {
     @Resource private AgentInternalTaskService internal;
     @Resource private AgentInternalPictureSearchService pictureSearch;
+    @Resource private AgentInternalPictureDetailsService pictureDetails;
 
     @GetMapping("/{id}/context")
     public BaseResponse<Map<String,Object>> context(@PathVariable String id,
@@ -37,5 +39,12 @@ public class AgentInternalController {
             @RequestHeader("Authorization") String authorization,
             @RequestBody AgentInternalSearchRequest body) {
         return ResultUtils.success(pictureSearch.search(authorization,id,body));
+    }
+    @PostMapping("/{id}/pictures/details")
+    public BaseResponse<List<Map<String,Object>>> pictureDetails(@PathVariable String id,
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody AgentInternalPictureIdsRequest body) {
+        return ResultUtils.success(pictureDetails.details(authorization,id,
+                body == null ? null : body.getPictureIds()));
     }
 }
