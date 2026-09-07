@@ -12,7 +12,11 @@ dependencies = [
 
 [project.optional-dependencies]
 retrieval = ["qdrant-client>=1.12,<2"]
-agent = ["langgraph>=0.2,<1", "dashscope>=1.20,<2"]
+agent = [
+  "langgraph>=1,<2",
+  "langgraph-checkpoint-redis>=0.4,<1",
+  "dashscope>=1.20,<2",
+]
 dev = ["pytest>=8,<9"]
 
 [project.scripts]

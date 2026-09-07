@@ -10,6 +10,7 @@ from app.retrieval.keyword_executor import (
 from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
 from app.security.service_token import ServiceContext
+from app.graph.workflow import RedisCheckpointWorkflow
 
 
 class ExecutorUnavailable(RuntimeError):
@@ -43,9 +44,10 @@ class TaskRunner:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
+        executor = KeywordSearchExecutor(IntentParser(settings), SemanticRetriever(settings))
         return cls(
             JavaTaskClient(settings),
-            KeywordSearchExecutor(IntentParser(settings), SemanticRetriever(settings)),
+            RedisCheckpointWorkflow(executor, settings),
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:

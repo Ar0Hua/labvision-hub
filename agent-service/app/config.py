@@ -17,6 +17,8 @@ class Settings:
     qdrant_api_key: str
     qdrant_collection: str
     qdrant_timeout_seconds: float
+    checkpoint_redis_url: str = "redis://127.0.0.1:6379/1"
+    checkpoint_ttl_minutes: int = 1440
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -39,4 +41,8 @@ class Settings:
             qdrant_api_key=os.getenv("QDRANT_API_KEY", ""),
             qdrant_collection=os.getenv("QDRANT_COLLECTION", "labvision_picture_v1"),
             qdrant_timeout_seconds=float(os.getenv("QDRANT_TIMEOUT_SECONDS", "5")),
+            checkpoint_redis_url=os.getenv(
+                "AGENT_CHECKPOINT_REDIS_URL", "redis://127.0.0.1:6379/1"
+            ),
+            checkpoint_ttl_minutes=int(os.getenv("AGENT_CHECKPOINT_TTL_MINUTES", "1440")),
         )
