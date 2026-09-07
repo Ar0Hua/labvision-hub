@@ -3,23 +3,29 @@ package com.yupi.yupicture.application.agent;
 import com.yupi.yupicture.domain.user.entity.User;
 import com.yupi.yupicture.infrastructure.exception.BusinessException;
 import com.yupi.yupicture.infrastructure.exception.ErrorCode;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import com.yupi.yupicture.domain.agent.AgentConversation;
+import com.yupi.yupicture.infrastructure.mapper.AgentConversationMapper;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
-import java.time.Duration;
+import java.util.Objects;
 import java.util.UUID;
 
-/** Redis 保存短期会话归属，后续持久消息和审计使用 MySQL。 */
+/** MySQL 持久保存会话归属，每次访问检查状态和用户。 */
 @Service
 public class AgentConversationService {
-    private static final String PREFIX = "labvision:agent:conversation:owner:";
     @Resource
-    private StringRedisTemplate redis;
+    private AgentConversationMapper mapper;
 
     public String create(User user) {
         requireUser(user);
         String id = UUID.randomUUID().toString();
-        redis.opsForValue().set(PREFIX + id, user.getId().toString(), Duration.ofHours(24));
+        AgentConversation row = new AgentConversation();
+        row.setId(id);
+        row.setUserId(user.getId());
+        row.setStatus("ACTIVE");
+        if (mapper.insert(row) != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "会话创建失败");
+        }
         return id;
     }
 
@@ -28,8 +34,8 @@ public class AgentConversationService {
         if (id == null || !id.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
         }
-        String owner = redis.opsForValue().get(PREFIX + id);
-        if (!user.getId().toString().equals(owner)) {
+        AgentConversation row = mapper.selectById(id);
+        if (row == null || !Objects.equals(user.getId(), row.getUserId()) || !"ACTIVE".equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
         }
     }
