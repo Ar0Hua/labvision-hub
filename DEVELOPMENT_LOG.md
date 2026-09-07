@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- ba78e25：可恢复 SSE 任务事件流，20 项测试通过，已同步 GitHub。
+- 本次：绑定任务/会话/用户/空间的 5 分钟 HMAC 服务上下文，见 agent-service/STEP-10.md。
+
 - 49c0109：持久任务事件和断线增量补拉，18 项测试通过，已同步 GitHub。
 - 本次：SSE 实时事件、Last-Event-ID 恢复和连接前权限校验，见 agent-service/STEP-09.md。
 
