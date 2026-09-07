@@ -30,6 +30,7 @@ public class AgentPictureService {
             if (picture == null || !Integer.valueOf(0).equals(picture.getIsDelete())) {
                 deny();
             }
+            conversations.requirePictureScope(conversationId, user, picture.getSpaceId());
             if (picture.getSpaceId() != null) {
                 access.resolve(user, Collections.singletonList(picture.getSpaceId()));
             } else if (!Integer.valueOf(1).equals(picture.getReviewStatus())) {

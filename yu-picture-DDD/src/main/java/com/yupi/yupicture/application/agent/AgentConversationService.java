@@ -15,21 +15,31 @@ import java.util.UUID;
 public class AgentConversationService {
     @Resource
     private AgentConversationMapper mapper;
+    @Resource
+    private AgentAccessService access;
 
     public String create(User user) {
+        return create(user, null);
+    }
+
+    public String create(User user, Long spaceId) {
         requireUser(user);
+        if (spaceId != null) {
+            access.resolve(user, java.util.Collections.singletonList(spaceId));
+        }
         String id = UUID.randomUUID().toString();
         AgentConversation row = new AgentConversation();
         row.setId(id);
         row.setUserId(user.getId());
         row.setStatus("ACTIVE");
+        row.setSpaceId(spaceId);
         if (mapper.insert(row) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "会话创建失败");
         }
         return id;
     }
 
-    public void requireOwner(String id, User user) {
+    public AgentConversation requireOwner(String id, User user) {
         requireUser(user);
         if (id == null || !id.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
@@ -37,6 +47,14 @@ public class AgentConversationService {
         AgentConversation row = mapper.selectById(id);
         if (row == null || !Objects.equals(user.getId(), row.getUserId()) || !"ACTIVE".equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
+        }
+        return row;
+    }
+
+    public void requirePictureScope(String id, User user, Long pictureSpaceId) {
+        AgentConversation row = requireOwner(id, user);
+        if (!Objects.equals(row.getSpaceId(), pictureSpaceId)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "图片不在当前会话范围内");
         }
     }
 

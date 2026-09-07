@@ -2,6 +2,7 @@ package com.yupi.yupicture.interfaces.controller.agent;
 
 import com.yupi.yupicture.application.agent.AgentConversationService;
 import com.yupi.yupicture.application.agent.AgentPictureService;
+import com.yupi.yupicture.interfaces.dto.agent.AgentConversationCreateRequest;
 import com.yupi.yupicture.application.service.UserApplicationService;
 import com.yupi.yupicture.infrastructure.common.BaseResponse;
 import com.yupi.yupicture.infrastructure.common.ResultUtils;
@@ -18,9 +19,10 @@ public class AgentConversationController {
     @Resource private AgentPictureService pictures;
 
     @PostMapping
-    public BaseResponse<Map<String, String>> create(HttpServletRequest request) {
+    public BaseResponse<Map<String, String>> create(
+            @RequestBody(required = false) AgentConversationCreateRequest body, HttpServletRequest request) {
         return ResultUtils.success(Collections.singletonMap("conversationId",
-                conversations.create(users.getLoginUser(request))));
+                conversations.create(users.getLoginUser(request), body == null ? null : body.getSpaceId())));
     }
 
     @PostMapping("/{id}/pictures/details")

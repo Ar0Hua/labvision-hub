@@ -8,4 +8,5 @@ public class AgentConversation {
  private String id;
  private Long userId;
  private String status;
+ private Long spaceId;
 }
