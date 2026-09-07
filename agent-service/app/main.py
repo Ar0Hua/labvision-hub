@@ -2,12 +2,13 @@ from collections.abc import Callable
 import re
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.config import Settings
 from app.runtime.registry import TaskRegistry
 from app.runtime.runner import TaskRunner
 from app.security.service_token import InvalidServiceToken, verify_service_token
+from app.observability.metrics import runtime_metrics
 
 TASK_ID = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
 
@@ -23,6 +24,10 @@ def create_app(
     @service.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @service.get("/metrics", response_class=PlainTextResponse)
+    def metrics() -> str:
+        return runtime_metrics.render()
 
     @service.post("/internal/tasks/{task_id}/run", status_code=202)
     def run_task(

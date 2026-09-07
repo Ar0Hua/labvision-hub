@@ -212,7 +212,7 @@ class TaskRuntimeTests(unittest.TestCase):
             return httpx.Response(200, json={"code": 0, "data": data})
 
         client = httpx.Client(base_url="http://java/api", transport=httpx.MockTransport(handler))
-        with patch("app.runtime.runner.time.monotonic", side_effect=[0, 11]):
+        with patch("app.runtime.runner.time.monotonic", side_effect=[0, 11, 11]):
             TaskRunner(JavaTaskClient(settings(), client), SuccessfulExecutor(), timeout_seconds=10).run(
                 self._context(), "token")
         states = [body for body in bodies if "status" in body]

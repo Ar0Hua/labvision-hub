@@ -13,6 +13,7 @@ from app.retrieval.semantic import SemanticRetriever
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
 from app.analysis.vision import VisionAnalyzer
+from app.observability.metrics import runtime_metrics
 
 
 class ExecutorUnavailable(RuntimeError):
@@ -62,7 +63,10 @@ class TaskRunner:
 
     def run(self, signed: ServiceContext, token: str) -> None:
         running = False
-        deadline = time.monotonic() + self.timeout_seconds
+        started = time.monotonic()
+        outcome = "ignored"
+        empty_result = False
+        deadline = started + self.timeout_seconds
         def check_active() -> None:
             if time.monotonic() >= deadline:
                 raise TaskDeadlineExceeded()
@@ -90,6 +94,7 @@ class TaskRunner:
                 lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
                 check_active,
             )
+            empty_result = result.candidate_count == 0
             check_active()
             self.java.append_event(
                 signed.task_id, token, "tool_result",
@@ -112,15 +117,18 @@ class TaskRunner:
             self.java.update_state(
                 signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
             )
+            outcome = "succeeded"
         except TaskCancelled:
-            pass
+            outcome = "cancelled"
         except TaskDeadlineExceeded:
+            outcome = "timeout"
             if running:
                 self._try_fail(
                     signed.task_id, token, status="FAILED", stage="TIMEOUT",
                     error_code="TASK_TIMEOUT", error_message="Agent 任务超过总执行时间限制",
                 )
         except ExecutorUnavailable:
+            outcome = "unavailable"
             if running:
                 self._try_fail(
                     signed.task_id,
@@ -131,6 +139,7 @@ class TaskRunner:
                     error_message="Agent 检索执行器尚未配置",
                 )
         except Exception:
+            outcome = "failed"
             if running:
                 self._try_fail(
                     signed.task_id,
@@ -141,6 +150,7 @@ class TaskRunner:
                     error_message="Agent 执行失败，请稍后重试",
                 )
         finally:
+            runtime_metrics.observe_task(outcome, time.monotonic() - started, empty_result)
             self.java.close()
 
     def _add_visual_analysis(
