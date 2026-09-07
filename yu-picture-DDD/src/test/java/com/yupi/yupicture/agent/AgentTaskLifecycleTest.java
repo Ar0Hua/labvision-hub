@@ -22,6 +22,7 @@ class AgentTaskLifecycleTest {
         when(f.mapper.selectById(ID)).thenReturn(f.task, cancelled);
         assertEquals("CANCELLED", f.service.cancel(ID, f.user).getStatus());
         verify(f.mapper).update(isNull(), any(Wrapper.class));
+        verify(f.events).append(ID,"status","{\"status\":\"CANCELLED\",\"stage\":\"CANCELLED\"}");
 
         reset(f.mapper);
         AgentTask failed = task("FAILED");
@@ -61,7 +62,8 @@ class AgentTaskLifecycleTest {
         ReflectionTestUtils.setField(f.service, "mapper", f.mapper);
         ReflectionTestUtils.setField(f.service, "conversations", f.conversations);
         ReflectionTestUtils.setField(f.service, "messages", mock(AgentMessageService.class));
-        ReflectionTestUtils.setField(f.service, "events", mock(AgentTaskEventService.class));
+        f.events = mock(AgentTaskEventService.class);
+        ReflectionTestUtils.setField(f.service, "events", f.events);
         ReflectionTestUtils.setField(f.service, "publisher", mock(ApplicationEventPublisher.class));
         f.user = new User(); f.user.setId(1L);
         f.task = task(status);
@@ -82,6 +84,7 @@ class AgentTaskLifecycleTest {
         AgentTaskService service;
         AgentTaskMapper mapper;
         AgentConversationService conversations;
+        AgentTaskEventService events;
         AgentTask task;
         User user;
     }

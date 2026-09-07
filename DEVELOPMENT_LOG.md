@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- ad1274b：可重放 Python 图片索引 Worker，25 项 Python 测试通过，已同步 GitHub。
+- 本次：Java 取消事件与 Python 分阶段取消检查、终态竞争保护，见 agent-service/STEP-24.md。
+
 - c82b1f0：索引任务 Worker 令牌、租约 claim/ack 和失败退避，35 项 Java Agent 测试通过，已同步 GitHub。
 - 本次：DashScope embedding、Qdrant upsert/delete 与可靠 ack 的 Python 索引 Worker，见 agent-service/STEP-23.md。
 

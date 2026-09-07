@@ -46,6 +46,7 @@ public class AgentInternalTaskService {
         result.put("userId",task.getUserId().toString());
         result.put("spaceId",stringId(conversation.getSpaceId()));
         result.put("query",message.getContent());
+        result.put("status",task.getStatus());
         return result;
     }
 

@@ -46,6 +46,7 @@ public class AgentTaskService {
         return AgentTaskVO.from(requireTask(taskId, user));
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public AgentTaskVO cancel(String taskId, User user) {
         AgentTask task = requireTask(taskId, user);
         if ("CANCELLED".equals(task.getStatus())) {
@@ -57,6 +58,7 @@ public class AgentTaskService {
         if (changed != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已变化，请刷新后重试");
         }
+        events.append(taskId, "status", "{\"status\":\"CANCELLED\",\"stage\":\"CANCELLED\"}");
         return get(taskId, user);
     }
 

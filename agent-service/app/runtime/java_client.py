@@ -14,6 +14,7 @@ class TaskContext(BaseModel):
     userId: str
     spaceId: str | None
     query: str
+    status: str
 
 
 class PictureCandidate(BaseModel):

@@ -5,7 +5,7 @@ from typing import Protocol
 from app.config import Settings
 from app.runtime.java_client import JavaTaskClient, TaskContext
 from app.retrieval.keyword_executor import (
-    AuthorizePictures, ExecutionResult, KeywordSearchExecutor, SearchPictures,
+    AuthorizePictures, CheckActive, ExecutionResult, KeywordSearchExecutor, SearchPictures,
 )
 from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
@@ -16,16 +16,22 @@ class ExecutorUnavailable(RuntimeError):
     pass
 
 
+class TaskCancelled(RuntimeError):
+    pass
+
+
 class TaskExecutor(Protocol):
     def execute(
-        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
+        check_active: CheckActive,
     ) -> ExecutionResult:
         ...
 
 
 class DisabledExecutor:
     def execute(
-        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
+        check_active: CheckActive,
     ) -> ExecutionResult:
         raise ExecutorUnavailable("retrieval executor is not configured")
 
@@ -47,6 +53,10 @@ class TaskRunner:
         try:
             context = self.java.get_context(signed.task_id, token)
             self._assert_scope(context, signed)
+            if context.status == "CANCELLED":
+                return
+            if context.status != "PENDING":
+                raise ValueError("task is not pending")
             self.java.update_state(
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
@@ -61,7 +71,9 @@ class TaskRunner:
                     signed.task_id, token, search_text=text, category=category, tags=tags, limit=limit
                 ),
                 lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
+                lambda: self._ensure_active(signed, token),
             )
+            self._ensure_active(signed, token)
             self.java.append_event(
                 signed.task_id, token, "tool_result",
                 json.dumps({"tool": "picture_keyword_search", "count": result.candidate_count},
@@ -81,9 +93,11 @@ class TaskRunner:
             self.java.update_state(
                 signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
             )
+        except TaskCancelled:
+            pass
         except ExecutorUnavailable:
             if running:
-                self.java.update_state(
+                self._try_fail(
                     signed.task_id,
                     token,
                     status="FAILED",
@@ -93,7 +107,7 @@ class TaskRunner:
                 )
         except Exception:
             if running:
-                self.java.update_state(
+                self._try_fail(
                     signed.task_id,
                     token,
                     status="FAILED",
@@ -103,6 +117,20 @@ class TaskRunner:
                 )
         finally:
             self.java.close()
+
+    def _ensure_active(self, signed: ServiceContext, token: str) -> None:
+        context = self.java.get_context(signed.task_id, token)
+        self._assert_scope(context, signed)
+        if context.status == "CANCELLED":
+            raise TaskCancelled()
+        if context.status != "RUNNING":
+            raise ValueError("task is no longer running")
+
+    def _try_fail(self, task_id: str, token: str, **kwargs) -> None:
+        try:
+            self.java.update_state(task_id, token, **kwargs)
+        except Exception:
+            pass
 
     @staticmethod
     def _assert_scope(context: TaskContext, signed: ServiceContext) -> None:

@@ -63,12 +63,12 @@ class RecordingRunner:
 
 
 class SuccessfulExecutor:
-    def execute(self, context: TaskContext, search, authorize) -> ExecutionResult:
+    def execute(self, context: TaskContext, search, authorize, check_active) -> ExecutionResult:
         return ExecutionResult("找到实验图像", [{"pictureId": "1", "name": "图像", "category": None}], 1)
 
 
 class MissingExecutor:
-    def execute(self, context: TaskContext, search, authorize) -> ExecutionResult:
+    def execute(self, context: TaskContext, search, authorize, check_active) -> ExecutionResult:
         raise ExecutorUnavailable()
 
 
@@ -100,7 +100,7 @@ class TaskRuntimeTests(unittest.TestCase):
             requests.append(request)
             if request.method == "GET":
                 data = {"taskId": TASK_ID, "conversationId": "conversation", "userId": "7",
-                        "spaceId": "9", "query": "找实验图"}
+                        "spaceId": "9", "query": "找实验图", "status": "PENDING" if len(requests) == 1 else "RUNNING"}
             else:
                 data = True
             return httpx.Response(200, json={"code": 0, "data": data, "message": ""})
@@ -125,7 +125,7 @@ class TaskRuntimeTests(unittest.TestCase):
         def handler(request: httpx.Request) -> httpx.Response:
             if request.method == "GET":
                 data = {"taskId": TASK_ID, "conversationId": "conversation", "userId": "7",
-                        "spaceId": "9", "query": "找实验图"}
+                        "spaceId": "9", "query": "找实验图", "status": "PENDING" if not bodies else "RUNNING"}
             else:
                 bodies.append(json.loads(request.content))
                 data = True
@@ -136,6 +136,28 @@ class TaskRuntimeTests(unittest.TestCase):
         states = [body for body in bodies if "status" in body]
         self.assertEqual([body["status"] for body in states], ["RUNNING", "FAILED"])
         self.assertEqual(states[-1]["errorCode"], "EXECUTOR_UNAVAILABLE")
+
+    def test_cancelled_task_does_not_emit_answer_or_failed_state(self):
+        bodies = []
+        get_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal get_count
+            if request.method == "GET":
+                get_count += 1
+                data = {"taskId": TASK_ID, "conversationId": "conversation", "userId": "7",
+                        "spaceId": "9", "query": "找实验图",
+                        "status": "PENDING" if get_count == 1 else "CANCELLED"}
+            else:
+                bodies.append(json.loads(request.content)); data = True
+            return httpx.Response(200, json={"code": 0, "data": data})
+
+        client = httpx.Client(base_url="http://java/api", transport=httpx.MockTransport(handler))
+        TaskRunner(JavaTaskClient(settings(), client), SuccessfulExecutor()).run(self._context(), "token")
+        event_types = [body.get("eventType") for body in bodies]
+        states = [body["status"] for body in bodies if "status" in body]
+        self.assertNotIn("answer_delta", event_types)
+        self.assertEqual(states, ["RUNNING"])
 
     def _context(self):
         from app.security.service_token import ServiceContext

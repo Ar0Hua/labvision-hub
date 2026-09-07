@@ -9,7 +9,8 @@ from app.runtime.java_client import PictureCandidate, TaskContext
 class KeywordExecutorTests(unittest.TestCase):
     def setUp(self):
         self.context = TaskContext(
-            taskId="task", conversationId="conversation", userId="7", spaceId="9", query="显微 成像"
+            taskId="task", conversationId="conversation", userId="7", spaceId="9",
+            query="显微 成像", status="RUNNING"
         )
 
     def test_formats_permission_scoped_results_and_citations(self):
@@ -23,7 +24,7 @@ class KeywordExecutorTests(unittest.TestCase):
             )]
 
         result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
-            self.context, search, lambda ids: []
+            self.context, search, lambda ids: [], lambda: None
         )
         self.assertEqual(calls, [("显微 成像", None, [], 10)])
         self.assertIn("2059881449783808001", result.answer)
@@ -32,7 +33,7 @@ class KeywordExecutorTests(unittest.TestCase):
 
     def test_empty_result_is_explicit_and_has_no_citation(self):
         result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
-            self.context, lambda _text, _category, _tags, _limit: [], lambda ids: []
+            self.context, lambda _text, _category, _tags, _limit: [], lambda ids: [], lambda: None
         )
         self.assertEqual(result.candidate_count, 0)
         self.assertEqual(result.citations, [])
@@ -58,6 +59,7 @@ class KeywordExecutorTests(unittest.TestCase):
             self.context,
             lambda _text, _category, _tags, _limit: keyword,
             lambda ids: authorized if ids == ["2", "3"] else [],
+            lambda: None,
         )
         self.assertEqual(result.citations[0]["pictureId"], "2")
         self.assertEqual(semantic.call[1], "space:9")

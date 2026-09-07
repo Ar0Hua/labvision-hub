@@ -10,6 +10,7 @@ from app.retrieval.semantic import SemanticRetriever
 
 SearchPictures = Callable[[str, str | None, list[str], int], list[PictureCandidate]]
 AuthorizePictures = Callable[[list[str]], list[PictureCandidate]]
+CheckActive = Callable[[], None]
 
 
 @dataclass(frozen=True)
@@ -27,17 +28,22 @@ class KeywordSearchExecutor:
         self._semantic = semantic
 
     def execute(
-        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
+        check_active: CheckActive,
     ) -> ExecutionResult:
         intent = self._parser.parse(context.query)
+        check_active()
         keyword = search(intent.searchText, intent.category, intent.tags, intent.limit)
+        check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
         if self._semantic and self._semantic.enabled:
             try:
                 scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
                 vector_ids = self._semantic.search(intent.searchText, scope_key, 20)
+                check_active()
                 authorized = authorize(vector_ids)
+                check_active()
                 metadata.update({picture.pictureId: picture for picture in authorized})
                 channels["vector"] = [picture.pictureId for picture in authorized]
             except Exception:
