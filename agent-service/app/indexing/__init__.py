@@ -1,0 +1,1 @@
+"""Picture index lifecycle utilities."""

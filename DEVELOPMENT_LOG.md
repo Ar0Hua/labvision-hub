@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- fdc22b5：DashScope 文本向量、Qdrant 范围查询和授权后 RRF，19 项 Python 测试通过，已同步 GitHub。
+- 本次：Qdrant collection 与 payload index 的可重复初始化命令，见 agent-service/STEP-20.md。
+
 - f41e4c6：外部索引候选 Java 回源鉴权，32 项 Java Agent 测试通过，已同步 GitHub。
 - 本次：DashScope 文本向量、Qdrant 范围过滤及授权后 RRF 融合，见 agent-service/STEP-19.md。
 
