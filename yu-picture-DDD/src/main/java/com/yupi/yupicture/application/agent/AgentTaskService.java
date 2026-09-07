@@ -7,6 +7,7 @@ import com.yupi.yupicture.infrastructure.exception.BusinessException;
 import com.yupi.yupicture.infrastructure.exception.ErrorCode;
 import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
 import com.yupi.yupicture.interfaces.vo.agent.AgentTaskVO;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
@@ -29,6 +30,7 @@ public class AgentTaskService {
         task.setUserId(user.getId());
         task.setStatus("PENDING");
         task.setStage("QUEUED");
+        task.setRetryCount(0);
         if (mapper.insert(task) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务创建失败");
         }
@@ -36,6 +38,38 @@ public class AgentTaskService {
     }
 
     public AgentTaskVO get(String taskId, User user) {
+        return AgentTaskVO.from(requireTask(taskId, user));
+    }
+
+    public AgentTaskVO cancel(String taskId, User user) {
+        AgentTask task = requireTask(taskId, user);
+        if ("CANCELLED".equals(task.getStatus())) {
+            return AgentTaskVO.from(task);
+        }
+        int changed = mapper.update(null, new UpdateWrapper<AgentTask>()
+                .eq("id", taskId).in("status", "PENDING", "RUNNING")
+                .set("status", "CANCELLED").set("stage", "CANCELLED"));
+        if (changed != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已变化，请刷新后重试");
+        }
+        return get(taskId, user);
+    }
+
+    public AgentTaskVO resume(String taskId, User user) {
+        AgentTask task = requireTask(taskId, user);
+        int retries = task.getRetryCount() == null ? 0 : task.getRetryCount();
+        int changed = mapper.update(null, new UpdateWrapper<AgentTask>()
+                .eq("id", taskId).in("status", "FAILED", "CANCELLED")
+                .set("status", "PENDING").set("stage", "QUEUED")
+                .set("errorCode", null).set("errorMessage", null)
+                .set("retryCount", retries + 1));
+        if (changed != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "只有失败或已取消任务可以重试");
+        }
+        return get(taskId, user);
+    }
+
+    private AgentTask requireTask(String taskId, User user) {
         if (taskId == null || !taskId.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
             deny();
         }
@@ -44,7 +78,7 @@ public class AgentTaskService {
             deny();
         }
         conversations.requireOwner(task.getConversationId(), user);
-        return AgentTaskVO.from(task);
+        return task;
     }
 
     private void deny() {

@@ -12,6 +12,7 @@ public class AgentTaskVO {
     private String stage;
     private String errorCode;
     private String errorMessage;
+    private Integer retryCount;
 
     public static AgentTaskVO from(AgentTask task) {
         AgentTaskVO vo = new AgentTaskVO();
@@ -22,6 +23,7 @@ public class AgentTaskVO {
         vo.setStage(task.getStage());
         vo.setErrorCode(task.getErrorCode());
         vo.setErrorMessage(task.getErrorMessage());
+        vo.setRetryCount(task.getRetryCount());
         return vo;
     }
 }

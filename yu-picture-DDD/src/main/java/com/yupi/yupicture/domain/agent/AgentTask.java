@@ -18,6 +18,7 @@ public class AgentTask {
     private String stage;
     private String errorCode;
     private String errorMessage;
+    private Integer retryCount;
     private Date createTime;
     private Date updateTime;
 }

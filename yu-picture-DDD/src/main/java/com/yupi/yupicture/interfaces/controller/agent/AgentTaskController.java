@@ -19,4 +19,14 @@ public class AgentTaskController {
     public BaseResponse<AgentTaskVO> get(@PathVariable String id, HttpServletRequest request) {
         return ResultUtils.success(tasks.get(id, users.getLoginUser(request)));
     }
+
+    @PostMapping("/{id}/cancel")
+    public BaseResponse<AgentTaskVO> cancel(@PathVariable String id, HttpServletRequest request) {
+        return ResultUtils.success(tasks.cancel(id, users.getLoginUser(request)));
+    }
+
+    @PostMapping("/{id}/resume")
+    public BaseResponse<AgentTaskVO> resume(@PathVariable String id, HttpServletRequest request) {
+        return ResultUtils.success(tasks.resume(id, users.getLoginUser(request)));
+    }
 }
