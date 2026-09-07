@@ -9,6 +9,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.util.*;
+import com.yupi.yupicture.interfaces.vo.agent.AgentConversationVO;
 class AgentConversationTest {
  @Test void ownershipAndStateFailClosed() {
   AgentConversationMapper mapper = mock(AgentConversationMapper.class);
@@ -41,6 +43,25 @@ class AgentConversationTest {
   assertThrows(BusinessException.class,() -> service.create(user));
   clearInvocations(mapper);
   assertThrows(BusinessException.class,() -> service.create(null));
+  verifyNoInteractions(mapper);
+ }
+ @Test void listReturnsOnlyMapperScopedConversationView() {
+  AgentConversationService service = new AgentConversationService();
+  AgentConversationMapper mapper = mock(AgentConversationMapper.class);
+  ReflectionTestUtils.setField(service,"mapper",mapper);
+  User user = new User(); user.setId(7L);
+  AgentConversation row = new AgentConversation(); row.setId("conversation");
+  row.setUserId(7L); row.setSpaceId(9L); row.setStatus("ACTIVE");
+  when(mapper.selectList(any())).thenReturn(Collections.singletonList(row));
+
+  List<AgentConversationVO> result = service.list(user);
+
+  assertEquals(1,result.size()); assertEquals("conversation",result.get(0).getConversationId());
+  assertEquals("9",result.get(0).getSpaceId()); assertEquals("ACTIVE",result.get(0).getStatus());
+  verify(mapper).selectList(argThat(query -> query.getSqlSegment().contains("userId")
+          && query.getSqlSegment().contains("updateTime")));
+  clearInvocations(mapper);
+  assertThrows(BusinessException.class,() -> service.list(null));
   verifyNoInteractions(mapper);
  }
 }

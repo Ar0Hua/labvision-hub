@@ -8,6 +8,7 @@ import com.yupi.yupicture.domain.agent.AgentMessage;
 import com.yupi.yupicture.interfaces.dto.agent.AgentConversationCreateRequest;
 import com.yupi.yupicture.interfaces.dto.agent.AgentMessageCreateRequest;
 import com.yupi.yupicture.interfaces.vo.agent.AgentTaskVO;
+import com.yupi.yupicture.interfaces.vo.agent.AgentConversationVO;
 import com.yupi.yupicture.application.service.UserApplicationService;
 import com.yupi.yupicture.infrastructure.common.BaseResponse;
 import com.yupi.yupicture.infrastructure.common.ResultUtils;
@@ -30,6 +31,11 @@ public class AgentConversationController {
             @RequestBody(required = false) AgentConversationCreateRequest body, HttpServletRequest request) {
         return ResultUtils.success(Collections.singletonMap("conversationId",
                 conversations.create(users.getLoginUser(request), body == null ? null : body.getSpaceId())));
+    }
+
+    @GetMapping
+    public BaseResponse<List<AgentConversationVO>> list(HttpServletRequest request) {
+        return ResultUtils.success(conversations.list(users.getLoginUser(request)));
     }
 
     @PostMapping("/{id}/pictures/details")

@@ -1,6 +1,7 @@
 package com.yupi.yupicture.domain.agent;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import java.util.Date;
 @Data
 @TableName("agent_conversation")
 public class AgentConversation {
@@ -9,4 +10,6 @@ public class AgentConversation {
  private Long userId;
  private String status;
  private Long spaceId;
+ private Date createTime;
+ private Date updateTime;
 }

@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.List;
+import java.util.stream.Collectors;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.yupi.yupicture.interfaces.vo.agent.AgentConversationVO;
 
 /** MySQL 持久保存会话归属，每次访问检查状态和用户。 */
 @Service
@@ -49,6 +53,16 @@ public class AgentConversationService {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
         }
         return row;
+    }
+
+    public List<AgentConversationVO> list(User user) {
+        requireUser(user);
+        return mapper.selectList(new QueryWrapper<AgentConversation>()
+                        .eq("userId", user.getId())
+                        .orderByDesc("updateTime")
+                        .orderByDesc("id")
+                        .last("LIMIT 50"))
+                .stream().map(AgentConversationVO::from).collect(Collectors.toList());
     }
 
     public void requirePictureScope(String id, User user, Long pictureSpaceId) {
