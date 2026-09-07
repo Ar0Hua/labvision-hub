@@ -1,7 +1,8 @@
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from urllib.parse import urlsplit
 
 from app.config import Settings
 
@@ -30,6 +31,19 @@ class PictureCandidate(BaseModel):
     height: int | None = None
     size: int | None = None
     format: str | None = None
+
+
+class VisionInput(PictureCandidate):
+    temporaryUrl: str
+    expiresInSeconds: int = Field(ge=30, le=300)
+
+    @field_validator("temporaryUrl")
+    @classmethod
+    def secure_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("vision input must be an HTTPS URL without embedded credentials")
+        return value
 
 
 class JavaGatewayError(RuntimeError):
@@ -111,6 +125,22 @@ class JavaTaskClient:
         if not isinstance(data, list):
             raise JavaGatewayError("Java picture authorization returned invalid data")
         return [PictureCandidate.model_validate(item) for item in data]
+
+    def get_vision_inputs(
+        self, task_id: str, token: str, picture_ids: list[str]
+    ) -> list[VisionInput]:
+        integer_ids = [int(value) for value in picture_ids[:8] if value.isdigit() and int(value) > 0]
+        if len(integer_ids) != min(len(picture_ids), 8) or not integer_ids:
+            raise JavaGatewayError("vision analysis received invalid picture IDs")
+        data = self._request(
+            "POST",
+            f"/agent/internal/tasks/{task_id}/pictures/vision-inputs",
+            token,
+            json={"pictureIds": integer_ids},
+        )
+        if not isinstance(data, list):
+            raise JavaGatewayError("Java vision input endpoint returned invalid data")
+        return [VisionInput.model_validate(item) for item in data]
 
     def close(self) -> None:
         if self._owns_client:

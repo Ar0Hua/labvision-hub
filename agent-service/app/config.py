@@ -19,6 +19,8 @@ class Settings:
     qdrant_timeout_seconds: float
     checkpoint_redis_url: str = "redis://127.0.0.1:6379/1"
     checkpoint_ttl_minutes: int = 1440
+    vision_model: str = ""
+    max_vision_pictures: int = 4
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -45,4 +47,6 @@ class Settings:
                 "AGENT_CHECKPOINT_REDIS_URL", "redis://127.0.0.1:6379/1"
             ),
             checkpoint_ttl_minutes=int(os.getenv("AGENT_CHECKPOINT_TTL_MINUTES", "1440")),
+            vision_model=os.getenv("AGENT_VISION_MODEL", "").strip(),
+            max_vision_pictures=min(8, max(1, int(os.getenv("AGENT_MAX_VISION_PICTURES", "4")))),
         )

@@ -72,6 +72,13 @@ class MissingExecutor:
         raise ExecutorUnavailable()
 
 
+class SuccessfulVision:
+    enabled = True
+
+    def analyze(self, query, pictures):
+        return f"已分析 {len(pictures)} 张图片，目标：{query}"
+
+
 class TaskRuntimeTests(unittest.TestCase):
     def test_endpoint_verifies_token_and_deduplicates_replay(self):
         now = int(time.time())
@@ -158,6 +165,40 @@ class TaskRuntimeTests(unittest.TestCase):
         states = [body["status"] for body in bodies if "status" in body]
         self.assertNotIn("answer_delta", event_types)
         self.assertEqual(states, ["RUNNING"])
+
+    def test_runner_fetches_authorized_vision_inputs_before_model_analysis(self):
+        requests = []
+        get_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal get_count
+            requests.append(request)
+            if request.method == "GET":
+                get_count += 1
+                data = {"taskId": TASK_ID, "conversationId": "conversation", "userId": "7",
+                        "spaceId": "9", "query": "分析实验图",
+                        "status": "PENDING" if get_count == 1 else "RUNNING"}
+            elif request.url.path.endswith("/pictures/vision-inputs"):
+                data = [{"pictureId": "1", "spaceId": "9", "name": "图像",
+                         "introduction": None, "category": None, "tags": "[]", "width": 256,
+                         "height": 256, "size": 1024, "format": "png",
+                         "temporaryUrl": "https://signed.example/1?token=short",
+                         "expiresInSeconds": 120}]
+            else:
+                data = True
+            return httpx.Response(200, json={"code": 0, "data": data})
+
+        client = httpx.Client(base_url="http://java/api", transport=httpx.MockTransport(handler))
+        runner = TaskRunner(JavaTaskClient(settings(), client), SuccessfulExecutor(), SuccessfulVision())
+        runner.run(self._context(), "token")
+
+        self.assertTrue(any(request.url.path.endswith("/pictures/vision-inputs") for request in requests))
+        event_bodies = [json.loads(request.content) for request in requests if request.content]
+        answers = [body for body in event_bodies if body.get("eventType") == "answer_delta"]
+        self.assertIn("视觉模型观察", answers[0]["payloadJson"])
+        tools = [json.loads(body["payloadJson"])["tool"] for body in event_bodies
+                 if body.get("eventType") == "tool_result"]
+        self.assertEqual(tools, ["picture_keyword_search", "vision_analysis"])
 
     def _context(self):
         from app.security.service_token import ServiceContext

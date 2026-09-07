@@ -11,6 +11,7 @@ from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
+from app.analysis.vision import VisionAnalyzer
 
 
 class ExecutorUnavailable(RuntimeError):
@@ -41,6 +42,7 @@ class DisabledExecutor:
 class TaskRunner:
     java: JavaTaskClient
     executor: TaskExecutor
+    vision: VisionAnalyzer | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -48,6 +50,7 @@ class TaskRunner:
         return cls(
             JavaTaskClient(settings),
             RedisCheckpointWorkflow(executor, settings),
+            VisionAnalyzer(settings),
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:
@@ -86,6 +89,8 @@ class TaskRunner:
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
+            result = self._add_visual_analysis(result, context, signed, token)
+            self._ensure_active(signed, token)
             self.java.append_event(
                 signed.task_id,
                 token,
@@ -119,6 +124,36 @@ class TaskRunner:
                 )
         finally:
             self.java.close()
+
+    def _add_visual_analysis(
+        self, result: ExecutionResult, context: TaskContext, signed: ServiceContext, token: str
+    ) -> ExecutionResult:
+        if not self.vision or not self.vision.enabled or not result.citations:
+            return result
+        picture_ids = [
+            item["pictureId"] for item in result.citations
+            if item.get("pictureId")
+        ][:8]
+        if not picture_ids:
+            return result
+        self.java.append_event(
+            signed.task_id, token, "tool_start",
+            json.dumps({"tool": "vision_analysis", "count": len(picture_ids)}, separators=(",", ":")),
+        )
+        inputs = self.java.get_vision_inputs(signed.task_id, token, picture_ids)
+        self._ensure_active(signed, token)
+        analysis = self.vision.analyze(context.query, inputs)
+        if not analysis:
+            return result
+        self.java.append_event(
+            signed.task_id, token, "tool_result",
+            json.dumps({"tool": "vision_analysis", "count": len(inputs)}, separators=(",", ":")),
+        )
+        return ExecutionResult(
+            answer=result.answer + "\n\n视觉模型观察（不代表实验事实）：\n" + analysis,
+            citations=result.citations,
+            candidate_count=result.candidate_count,
+        )
 
     def _ensure_active(self, signed: ServiceContext, token: str) -> None:
         context = self.java.get_context(signed.task_id, token)
