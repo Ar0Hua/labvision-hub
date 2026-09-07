@@ -16,6 +16,21 @@ class TaskContext(BaseModel):
     query: str
 
 
+class PictureCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pictureId: str
+    spaceId: str | None
+    name: str | None = None
+    introduction: str | None = None
+    category: str | None = None
+    tags: str | None = None
+    width: int | None = None
+    height: int | None = None
+    size: int | None = None
+    format: str | None = None
+
+
 class JavaGatewayError(RuntimeError):
     pass
 
@@ -61,6 +76,19 @@ class JavaTaskClient:
             token,
             json={"eventType": event_type, "payloadJson": payload_json},
         )
+
+    def search_pictures(
+        self, task_id: str, token: str, *, search_text: str, limit: int = 10
+    ) -> list[PictureCandidate]:
+        data = self._request(
+            "POST",
+            f"/agent/internal/tasks/{task_id}/pictures/search",
+            token,
+            json={"searchText": search_text, "limit": limit},
+        )
+        if not isinstance(data, list):
+            raise JavaGatewayError("Java picture search returned invalid data")
+        return [PictureCandidate.model_validate(item) for item in data]
 
     def close(self) -> None:
         if self._owns_client:

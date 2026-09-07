@@ -4,6 +4,7 @@ from typing import Protocol
 
 from app.config import Settings
 from app.runtime.java_client import JavaTaskClient, TaskContext
+from app.retrieval.keyword_executor import ExecutionResult, KeywordSearchExecutor, SearchPictures
 from app.security.service_token import ServiceContext
 
 
@@ -12,12 +13,12 @@ class ExecutorUnavailable(RuntimeError):
 
 
 class TaskExecutor(Protocol):
-    def execute(self, context: TaskContext) -> str:
+    def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
         ...
 
 
 class DisabledExecutor:
-    def execute(self, context: TaskContext) -> str:
+    def execute(self, context: TaskContext, search: SearchPictures) -> ExecutionResult:
         raise ExecutorUnavailable("retrieval executor is not configured")
 
 
@@ -28,7 +29,7 @@ class TaskRunner:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
-        return cls(JavaTaskClient(settings), DisabledExecutor())
+        return cls(JavaTaskClient(settings), KeywordSearchExecutor())
 
     def run(self, signed: ServiceContext, token: str) -> None:
         running = False
@@ -39,12 +40,31 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
-            answer = self.executor.execute(context)
+            self.java.append_event(
+                signed.task_id, token, "tool_start",
+                json.dumps({"tool": "picture_keyword_search"}, separators=(",", ":")),
+            )
+            result = self.executor.execute(
+                context,
+                lambda text, limit: self.java.search_pictures(
+                    signed.task_id, token, search_text=text, limit=limit
+                ),
+            )
+            self.java.append_event(
+                signed.task_id, token, "tool_result",
+                json.dumps({"tool": "picture_keyword_search", "count": result.candidate_count},
+                           separators=(",", ":")),
+            )
+            for citation in result.citations:
+                self.java.append_event(
+                    signed.task_id, token, "citation",
+                    json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
+                )
             self.java.append_event(
                 signed.task_id,
                 token,
                 "answer_delta",
-                json.dumps({"text": answer}, ensure_ascii=False, separators=(",", ":")),
+                json.dumps({"text": result.answer}, ensure_ascii=False, separators=(",", ":")),
             )
             self.java.update_state(
                 signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"

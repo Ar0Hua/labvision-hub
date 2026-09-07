@@ -13,6 +13,7 @@ from app.main import create_app
 from app.runtime.java_client import JavaTaskClient, TaskContext
 from app.runtime.registry import TaskRegistry
 from app.runtime.runner import ExecutorUnavailable, TaskRunner
+from app.retrieval.keyword_executor import ExecutionResult
 
 
 SECRET = "0123456789abcdef0123456789abcdef"
@@ -55,12 +56,12 @@ class RecordingRunner:
 
 
 class SuccessfulExecutor:
-    def execute(self, context: TaskContext) -> str:
-        return "找到实验图像"
+    def execute(self, context: TaskContext, search) -> ExecutionResult:
+        return ExecutionResult("找到实验图像", [{"pictureId": "1", "name": "图像", "category": None}], 1)
 
 
 class MissingExecutor:
-    def execute(self, context: TaskContext) -> str:
+    def execute(self, context: TaskContext, search) -> ExecutionResult:
         raise ExecutorUnavailable()
 
 
@@ -104,8 +105,11 @@ class TaskRuntimeTests(unittest.TestCase):
 
         bodies = [json.loads(request.content) for request in requests if request.content]
         self.assertEqual(bodies[0]["status"], "RUNNING")
-        self.assertEqual(bodies[1]["eventType"], "answer_delta")
-        self.assertEqual(bodies[2]["status"], "SUCCEEDED")
+        self.assertEqual(bodies[1]["eventType"], "tool_start")
+        self.assertEqual(bodies[2]["eventType"], "tool_result")
+        self.assertEqual(bodies[3]["eventType"], "citation")
+        self.assertEqual(bodies[4]["eventType"], "answer_delta")
+        self.assertEqual(bodies[5]["status"], "SUCCEEDED")
         self.assertTrue(all(request.headers["authorization"] == "Bearer token" for request in requests))
 
     def test_unavailable_executor_fails_without_placeholder_answer(self):
@@ -122,8 +126,9 @@ class TaskRuntimeTests(unittest.TestCase):
 
         client = httpx.Client(base_url="http://java/api", transport=httpx.MockTransport(handler))
         TaskRunner(JavaTaskClient(settings(), client), MissingExecutor()).run(self._context(), "token")
-        self.assertEqual([body["status"] for body in bodies], ["RUNNING", "FAILED"])
-        self.assertEqual(bodies[-1]["errorCode"], "EXECUTOR_UNAVAILABLE")
+        states = [body for body in bodies if "status" in body]
+        self.assertEqual([body["status"] for body in states], ["RUNNING", "FAILED"])
+        self.assertEqual(states[-1]["errorCode"], "EXECUTOR_UNAVAILABLE")
 
     def _context(self):
         from app.security.service_token import ServiceContext

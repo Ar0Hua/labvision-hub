@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 5f83b37：权限安全的 Java 图片关键词召回，31 项 Java Agent 测试通过，已同步 GitHub。
+- 本次：Python 默认关键词检索执行器和可恢复的工具/引用/答案事件，见 agent-service/STEP-16.md。
+
 - 3080ffa：Python 受保护任务接收与 Java 状态/事件回调，12 项 Python 测试通过，已同步 GitHub。
 - 本次：权限安全的 Java 图片关键词召回内部工具，见 agent-service/STEP-15.md。
 
