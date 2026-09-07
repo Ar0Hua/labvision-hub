@@ -73,6 +73,7 @@ class AgentTaskServiceTest {
         ReflectionTestUtils.setField(service, "conversations", mock(AgentConversationService.class));
         ReflectionTestUtils.setField(service, "messages", mock(AgentMessageService.class));
         ReflectionTestUtils.setField(service, "mapper", mock(AgentTaskMapper.class));
+        ReflectionTestUtils.setField(service, "events", mock(AgentTaskEventService.class));
         return service;
     }
 

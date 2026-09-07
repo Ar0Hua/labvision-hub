@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 2fe0b60：任务取消和失败/取消重试，15 项 Agent 测试通过，已同步 GitHub。
+- 本次：持久任务事件与基于 afterEventId 的权限安全增量补拉，见 agent-service/STEP-08.md。
+
 - 9295d6a：任务持久化及归属安全的任务查询，12 项回归测试通过，已同步 GitHub。
 - 本次：任务取消、条件状态更新和失败/取消重试，见 agent-service/STEP-07.md。
 

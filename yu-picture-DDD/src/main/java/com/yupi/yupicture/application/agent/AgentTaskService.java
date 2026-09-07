@@ -18,6 +18,7 @@ public class AgentTaskService {
     @Resource private AgentConversationService conversations;
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskMapper mapper;
+    @Resource private AgentTaskEventService events;
 
     /** 消息和任务必须同时成功或同时回滚。 */
     @Transactional(rollbackFor = Exception.class)
@@ -34,6 +35,7 @@ public class AgentTaskService {
         if (mapper.insert(task) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务创建失败");
         }
+        events.append(task.getId(), "status", "{\"stage\":\"queued\"}");
         return AgentTaskVO.from(task);
     }
 

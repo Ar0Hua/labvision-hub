@@ -60,6 +60,7 @@ class AgentTaskLifecycleTest {
         ReflectionTestUtils.setField(f.service, "mapper", f.mapper);
         ReflectionTestUtils.setField(f.service, "conversations", f.conversations);
         ReflectionTestUtils.setField(f.service, "messages", mock(AgentMessageService.class));
+        ReflectionTestUtils.setField(f.service, "events", mock(AgentTaskEventService.class));
         f.user = new User(); f.user.setId(1L);
         f.task = task(status);
         return f;
