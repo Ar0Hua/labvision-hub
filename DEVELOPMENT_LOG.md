@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 2c47df1：事务提交后的 Java→Python 异步任务分发，29 项 Agent 测试通过，已同步 GitHub。
+- 本次：Python 受保护任务接收、重复分发防护及 Java 状态/事件回调，见 agent-service/STEP-14.md。
+
 - 9e5707f：令牌保护的 Java 内部任务网关，25 项 Agent 测试通过，已同步 GitHub。
 - 本次：事务提交后的 Java→Python 异步任务分发和失败落库，见 agent-service/STEP-13.md。
 

@@ -1,0 +1,83 @@
+from dataclasses import dataclass
+import json
+from typing import Protocol
+
+from app.config import Settings
+from app.runtime.java_client import JavaTaskClient, TaskContext
+from app.security.service_token import ServiceContext
+
+
+class ExecutorUnavailable(RuntimeError):
+    pass
+
+
+class TaskExecutor(Protocol):
+    def execute(self, context: TaskContext) -> str:
+        ...
+
+
+class DisabledExecutor:
+    def execute(self, context: TaskContext) -> str:
+        raise ExecutorUnavailable("retrieval executor is not configured")
+
+
+@dataclass
+class TaskRunner:
+    java: JavaTaskClient
+    executor: TaskExecutor
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> "TaskRunner":
+        return cls(JavaTaskClient(settings), DisabledExecutor())
+
+    def run(self, signed: ServiceContext, token: str) -> None:
+        running = False
+        try:
+            context = self.java.get_context(signed.task_id, token)
+            self._assert_scope(context, signed)
+            self.java.update_state(
+                signed.task_id, token, status="RUNNING", stage="INITIALIZING"
+            )
+            running = True
+            answer = self.executor.execute(context)
+            self.java.append_event(
+                signed.task_id,
+                token,
+                "answer_delta",
+                json.dumps({"text": answer}, ensure_ascii=False, separators=(",", ":")),
+            )
+            self.java.update_state(
+                signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
+            )
+        except ExecutorUnavailable:
+            if running:
+                self.java.update_state(
+                    signed.task_id,
+                    token,
+                    status="FAILED",
+                    stage="EXECUTOR_UNAVAILABLE",
+                    error_code="EXECUTOR_UNAVAILABLE",
+                    error_message="Agent 检索执行器尚未配置",
+                )
+        except Exception:
+            if running:
+                self.java.update_state(
+                    signed.task_id,
+                    token,
+                    status="FAILED",
+                    stage="INTERNAL_ERROR",
+                    error_code="AGENT_INTERNAL_ERROR",
+                    error_message="Agent 执行失败，请稍后重试",
+                )
+        finally:
+            self.java.close()
+
+    @staticmethod
+    def _assert_scope(context: TaskContext, signed: ServiceContext) -> None:
+        if (
+            context.taskId != signed.task_id
+            or context.conversationId != signed.conversation_id
+            or context.userId != signed.user_id
+            or context.spaceId != signed.space_id
+        ):
+            raise ValueError("Java context does not match signed scope")
