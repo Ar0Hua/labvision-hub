@@ -1,0 +1,8 @@
+# 将这些配置合并到本机未入库的 application.yml，或直接使用对应环境变量。
+agent:
+  internal:
+    secret: ${AGENT_INTERNAL_SECRET:}
+  service:
+    base-url: ${AGENT_SERVICE_BASE_URL:http://127.0.0.1:8000}
+    connect-timeout-ms: ${AGENT_SERVICE_CONNECT_TIMEOUT_MS:2000}
+    read-timeout-ms: ${AGENT_SERVICE_READ_TIMEOUT_MS:5000}

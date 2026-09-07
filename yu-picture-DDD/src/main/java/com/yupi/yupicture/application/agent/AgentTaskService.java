@@ -9,6 +9,7 @@ import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
 import com.yupi.yupicture.interfaces.vo.agent.AgentTaskVO;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.UUID;
@@ -19,6 +20,7 @@ public class AgentTaskService {
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskMapper mapper;
     @Resource private AgentTaskEventService events;
+    @Resource private ApplicationEventPublisher publisher;
 
     /** 消息和任务必须同时成功或同时回滚。 */
     @Transactional(rollbackFor = Exception.class)
@@ -36,6 +38,7 @@ public class AgentTaskService {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务创建失败");
         }
         events.append(task.getId(), "status", "{\"stage\":\"queued\"}");
+        publisher.publishEvent(new AgentTaskDispatchRequested(task.getId()));
         return AgentTaskVO.from(task);
     }
 
@@ -57,6 +60,7 @@ public class AgentTaskService {
         return get(taskId, user);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public AgentTaskVO resume(String taskId, User user) {
         AgentTask task = requireTask(taskId, user);
         int retries = task.getRetryCount() == null ? 0 : task.getRetryCount();
@@ -68,6 +72,7 @@ public class AgentTaskService {
         if (changed != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "只有失败或已取消任务可以重试");
         }
+        publisher.publishEvent(new AgentTaskDispatchRequested(taskId));
         return get(taskId, user);
     }
 

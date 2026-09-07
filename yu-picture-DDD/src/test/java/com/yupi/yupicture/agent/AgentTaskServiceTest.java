@@ -8,6 +8,7 @@ import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
 import com.yupi.yupicture.interfaces.vo.agent.AgentTaskVO;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -33,6 +34,8 @@ class AgentTaskServiceTest {
         assertEquals("message-id", saved.getInputMessageId());
         assertEquals(Long.valueOf(7), saved.getUserId());
         assertEquals(saved.getId(), result.getTaskId());
+        ApplicationEventPublisher publisher = field(service, "publisher");
+        verify(publisher).publishEvent(any(AgentTaskDispatchRequested.class));
     }
 
     @Test void failedTaskInsertIsReportedForTransactionRollback() {
@@ -74,6 +77,7 @@ class AgentTaskServiceTest {
         ReflectionTestUtils.setField(service, "messages", mock(AgentMessageService.class));
         ReflectionTestUtils.setField(service, "mapper", mock(AgentTaskMapper.class));
         ReflectionTestUtils.setField(service, "events", mock(AgentTaskEventService.class));
+        ReflectionTestUtils.setField(service, "publisher", mock(ApplicationEventPublisher.class));
         return service;
     }
 

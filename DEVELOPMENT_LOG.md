@@ -12,6 +12,9 @@
 
 ### 已完成的小步骤
 
+- 9e5707f：令牌保护的 Java 内部任务网关，25 项 Agent 测试通过，已同步 GitHub。
+- 本次：事务提交后的 Java→Python 异步任务分发和失败落库，见 agent-service/STEP-13.md。
+
 - cc719f8：Python 服务基础及兼容令牌验签，9 项 Python 测试通过，已同步 GitHub。
 - 本次：令牌保护的 Java 内部任务上下文、事件与状态接口，见 agent-service/STEP-12.md。
 

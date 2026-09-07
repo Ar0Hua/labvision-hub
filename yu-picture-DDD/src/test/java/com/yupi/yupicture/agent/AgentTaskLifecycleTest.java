@@ -8,6 +8,7 @@ import com.yupi.yupicture.infrastructure.exception.BusinessException;
 import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -61,6 +62,7 @@ class AgentTaskLifecycleTest {
         ReflectionTestUtils.setField(f.service, "conversations", f.conversations);
         ReflectionTestUtils.setField(f.service, "messages", mock(AgentMessageService.class));
         ReflectionTestUtils.setField(f.service, "events", mock(AgentTaskEventService.class));
+        ReflectionTestUtils.setField(f.service, "publisher", mock(ApplicationEventPublisher.class));
         f.user = new User(); f.user.setId(1L);
         f.task = task(status);
         return f;
