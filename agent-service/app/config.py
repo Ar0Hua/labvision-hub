@@ -22,6 +22,11 @@ class Settings:
     vision_model: str = ""
     max_vision_pictures: int = 4
     task_timeout_seconds: float = 120
+    image_embedding_model: str = "multimodal-embedding-v1"
+    image_embedding_dimensions: int = 1024
+    image_embedding_base_url: str = "https://dashscope.aliyuncs.com/api/v1"
+    caption_model: str = "qwen-vl-plus"
+    feature_version: str = "image-v1+text-v1+caption-v1"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -51,4 +56,17 @@ class Settings:
             vision_model=os.getenv("AGENT_VISION_MODEL", "").strip(),
             max_vision_pictures=min(8, max(1, int(os.getenv("AGENT_MAX_VISION_PICTURES", "4")))),
             task_timeout_seconds=max(10, float(os.getenv("AGENT_TASK_TIMEOUT_SECONDS", "120"))),
+            image_embedding_model=os.getenv(
+                "AGENT_IMAGE_EMBEDDING_MODEL", "multimodal-embedding-v1"
+            ).strip(),
+            image_embedding_dimensions=int(os.getenv(
+                "AGENT_IMAGE_EMBEDDING_DIMENSIONS", "1024"
+            )),
+            image_embedding_base_url=os.getenv(
+                "DASHSCOPE_MULTIMODAL_BASE_URL", "https://dashscope.aliyuncs.com/api/v1"
+            ).rstrip("/"),
+            caption_model=os.getenv("AGENT_CAPTION_MODEL", "qwen-vl-plus").strip(),
+            feature_version=os.getenv(
+                "AGENT_FEATURE_VERSION", "image-v1+text-v1+caption-v1"
+            ).strip(),
         )

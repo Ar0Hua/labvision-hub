@@ -1,0 +1,27 @@
+-- 在 V001-V008 后执行。向量本体保存在 Qdrant，本表只保存可解释特征与索引状态。
+CREATE TABLE IF NOT EXISTS picture_ai_feature (
+    id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    pictureId bigint NOT NULL,
+    caption varchar(2000) NULL,
+    ocrText varchar(4000) NULL,
+    contentHash char(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    phash char(16) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    dhash char(16) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    blurScore double NULL,
+    brightnessScore double NULL,
+    qualityFlags varchar(512) NULL,
+    embeddingModel varchar(128) NULL,
+    embeddingVersion varchar(64) NULL,
+    captionModel varchar(128) NULL,
+    promptVersion varchar(64) NULL,
+    indexStatus varchar(16) NOT NULL DEFAULT 'PENDING',
+    lastIndexedAt datetime NULL,
+    lastError varchar(512) NULL,
+    sourceUpdatedAt datetime NULL,
+    createTime datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updateTime datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX uk_picture_ai_feature_picture (pictureId),
+    INDEX idx_picture_ai_feature_status (indexStatus, updateTime),
+    INDEX idx_picture_ai_feature_hash (contentHash),
+    INDEX idx_picture_ai_feature_phash (phash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

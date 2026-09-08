@@ -24,19 +24,19 @@ class QdrantSchemaTests(unittest.TestCase):
 
         client = httpx.Client(base_url="http://qdrant", transport=httpx.MockTransport(handler))
         QdrantSchemaManager(settings(), client).ensure()
-        self.assertEqual([(r.method, r.url.path) for r in requests], [
-            ("GET", "/collections/labvision_picture_v1"),
-            ("PUT", "/collections/labvision_picture_v1"),
-            ("PUT", "/collections/labvision_picture_v1/index"),
-            ("PUT", "/collections/labvision_picture_v1/index"),
-        ])
+        self.assertEqual((requests[0].method, requests[0].url.path),
+                         ("GET", "/collections/labvision_picture_v1"))
+        self.assertEqual((requests[1].method, requests[1].url.path),
+                         ("PUT", "/collections/labvision_picture_v1"))
+        self.assertEqual(len(requests), 14)
         self.assertTrue(all(r.headers["api-key"] == "secret" for r in requests))
 
     def test_existing_compatible_schema_is_idempotent(self):
         def handler(request: httpx.Request) -> httpx.Response:
             if request.method == "GET":
                 return httpx.Response(200, json={"result": {"config": {"params": {"vectors": {
-                    "size": 1024, "distance": "Cosine"
+                    "text_dense": {"size": 1024, "distance": "Cosine"},
+                    "image_dense": {"size": 1024, "distance": "Cosine"},
                 }}}}})
             return httpx.Response(200, json={"status": "ok"})
 

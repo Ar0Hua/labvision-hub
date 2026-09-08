@@ -6,6 +6,7 @@ import com.yupi.yupicture.domain.agent.AgentPictureIndexOutbox;
 import com.yupi.yupicture.domain.picture.entity.Picture;
 import com.yupi.yupicture.domain.picture.repository.PictureRepository;
 import com.yupi.yupicture.infrastructure.exception.BusinessException;
+import com.yupi.yupicture.infrastructure.api.CosManager;
 import com.yupi.yupicture.infrastructure.mapper.AgentPictureIndexOutboxMapper;
 import com.yupi.yupicture.interfaces.dto.agent.AgentIndexAckRequest;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,9 @@ class AgentPictureIndexJobServiceTest {
         when(f.jobs.updateById(row)).thenReturn(1);
         Picture picture=new Picture(); picture.setId(row.getPictureId()); picture.setSpaceId(9L);
         picture.setName("显微图"); picture.setIsDelete(0);
+        picture.setThumbnailUrl("https://cos.example/thumb.webp");
         when(f.pictures.getById(row.getPictureId())).thenReturn(picture);
+        when(f.cos.generatePresignedGetUrl(anyString(),eq(300))).thenReturn("https://signed/thumb.webp");
         List<Map<String,Object>> result=f.service.claim("Bearer worker",10);
         assertEquals("space:9",result.get(0).get("scopeKey"));
         assertEquals("2059881449783808001",result.get(0).get("pictureId"));
@@ -52,11 +55,16 @@ class AgentPictureIndexJobServiceTest {
         Fixture f=new Fixture(); f.service=new AgentPictureIndexJobService();
         f.tokens=mock(AgentServiceTokenService.class); f.jobs=mock(AgentPictureIndexOutboxMapper.class);
         f.pictures=mock(PictureRepository.class);
+        f.features=mock(AgentPictureFeatureService.class);
+        f.cos=mock(CosManager.class);
         ReflectionTestUtils.setField(f.service,"tokens",f.tokens);
         ReflectionTestUtils.setField(f.service,"jobs",f.jobs);
         ReflectionTestUtils.setField(f.service,"pictures",f.pictures);
+        ReflectionTestUtils.setField(f.service,"features",f.features);
+        ReflectionTestUtils.setField(f.service,"cos",f.cos);
         return f;
     }
     private static class Fixture { AgentPictureIndexJobService service; AgentServiceTokenService tokens;
-        AgentPictureIndexOutboxMapper jobs; PictureRepository pictures; }
+        AgentPictureIndexOutboxMapper jobs; PictureRepository pictures;
+        AgentPictureFeatureService features; CosManager cos; }
 }

@@ -28,8 +28,14 @@ class QdrantSchemaManager:
                 headers=headers,
                 json={
                     "vectors": {
-                        "size": self._settings.embedding_dimensions,
-                        "distance": "Cosine",
+                        "text_dense": {
+                            "size": self._settings.embedding_dimensions,
+                            "distance": "Cosine",
+                        },
+                        "image_dense": {
+                            "size": self._settings.image_embedding_dimensions,
+                            "distance": "Cosine",
+                        },
                     }
                 },
             )
@@ -37,11 +43,17 @@ class QdrantSchemaManager:
         else:
             current.raise_for_status()
             self._verify_existing(current.json())
-        for field in ("scopeKey", "pictureId"):
+        payload_indexes = {
+            "scopeKey": "keyword", "pictureId": "keyword", "spaceId": "keyword",
+            "userId": "keyword", "reviewStatus": "integer", "isDelete": "integer",
+            "category": "keyword", "picFormat": "keyword", "createdAtEpoch": "integer",
+            "sourceUpdatedAtEpoch": "integer", "contentHash": "keyword", "phash": "keyword",
+        }
+        for field, schema in payload_indexes.items():
             response = self._client.put(
                 f"/collections/{collection}/index",
                 headers=headers,
-                json={"field_name": field, "field_schema": "keyword"},
+                json={"field_name": field, "field_schema": schema},
             )
             response.raise_for_status()
 
@@ -52,11 +64,17 @@ class QdrantSchemaManager:
     def _verify_existing(self, body: dict) -> None:
         try:
             vectors = body["result"]["config"]["params"]["vectors"]
-            size = int(vectors["size"])
-            distance = str(vectors["distance"]).lower()
+            text = vectors["text_dense"]
+            image = vectors["image_dense"]
+            text_size = int(text["size"])
+            image_size = int(image["size"])
+            text_distance = str(text["distance"]).lower()
+            image_distance = str(image["distance"]).lower()
         except (KeyError, TypeError, ValueError) as error:
             raise QdrantSchemaError("cannot read existing Qdrant vector schema") from error
-        if size != self._settings.embedding_dimensions or distance != "cosine":
+        if (text_size != self._settings.embedding_dimensions
+                or image_size != self._settings.image_embedding_dimensions
+                or text_distance != "cosine" or image_distance != "cosine"):
             raise QdrantSchemaError(
                 "existing Qdrant collection is incompatible; use a new collection name or rebuild it"
             )

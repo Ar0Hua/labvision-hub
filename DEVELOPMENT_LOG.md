@@ -128,3 +128,10 @@
 - 最终回归：Java Agent 39 项、Python Agent 37 项通过，前端生产构建与目标 ESLint 通过。
 - 明确只读 MVP 的完成范围与后续 P1/P2 边界，避免把未部署和未调优描述为已上线。
 - 新增迁移、启动、冒烟、降级、回滚和密钥泄露处置 Runbook。
+
+# 2026-09-08 - Step 35：图片 AI 特征与双向量索引
+
+- 新增 `picture_ai_feature` 迁移和特征状态回写，保存 caption/OCR、内容哈希、感知哈希和质量指标。
+- 索引 Worker 使用受控签名缩略图生成文本/图片命名向量，Qdrant 增加完整权限与元数据 payload index。
+- Python 全量 39 项测试通过，Java Agent 39 项测试通过；未执行迁移或连接真实外部服务。
+- 详细交付记录见 `agent-service/STEP-35.md`。

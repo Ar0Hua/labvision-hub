@@ -4,6 +4,7 @@ import time
 from urllib.parse import quote
 
 import httpx
+from app.indexing.pipeline import PictureIndexWorker
 from pydantic import BaseModel, ConfigDict
 
 from app.config import Settings
@@ -24,7 +25,7 @@ class IndexJob(BaseModel):
     tags: str | None = None
 
 
-class PictureIndexWorker:
+class LegacyPictureIndexWorker:
     def __init__(
         self,
         settings: Settings,
