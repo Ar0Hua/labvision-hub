@@ -142,3 +142,10 @@
 - 使用 Qdrant `image_dense` 执行同权限范围的视觉相似召回，结果回源 Java 二次鉴权后参与加权 RRF 融合。
 - 前端工作台支持图片 ID 选择，图片详情页提供自动携带图片与空间上下文的“Agent 查相似”入口。
 - Python 41 项、Java Agent 41 项测试及前端生产构建通过；详细记录见 `agent-service/STEP-36.md`。
+
+# 2026-09-08 - Step 37：混合结构化过滤
+
+- `SearchIntent` 增加格式、日期、尺寸、文件大小和排序的严格类型约束及模型故障降级。
+- Java 在已签名会话空间内执行参数化 SQL 过滤，文本/图像向量召回同步使用相同 Qdrant payload filter。
+- Python→Java 契约采用字段白名单，拒绝 raw SQL、未知格式、非法日期和越界数值。
+- Python 44 项、Java Agent 43 项测试通过；详细记录见 `agent-service/STEP-37.md`。

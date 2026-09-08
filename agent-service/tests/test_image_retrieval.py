@@ -26,7 +26,7 @@ class ImageRetrievalTests(unittest.TestCase):
         qdrant = httpx.Client(base_url="http://qdrant",
                               transport=httpx.MockTransport(handler))
         result = SemanticRetriever(settings, qdrant_client=qdrant).search_by_pictures(
-            ["2"], "space:7", 10)
+            ["2"], "space:7", 10, {"formats": ["tif"]})
 
         self.assertEqual(result, ["9"])
         body = json.loads(requests[0].content)
@@ -35,6 +35,7 @@ class ImageRetrievalTests(unittest.TestCase):
         self.assertEqual(body["filter"]["must"][0]["match"]["value"], "space:7")
         self.assertEqual(body["filter"]["must_not"][0]["match"]["any"], ["2"])
 
+        self.assertIn({"key": "picFormat", "match": {"any": ["tif"]}}, body["filter"]["must"])
 
 if __name__ == "__main__":
     unittest.main()

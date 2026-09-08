@@ -11,10 +11,10 @@ class MultimodalExecutorTests(unittest.TestCase):
         class Semantic:
             enabled = True
 
-            def search(self, _text, _scope, _limit):
+            def search(self, _text, _scope, _limit, _filters):
                 return []
 
-            def search_by_pictures(self, picture_ids, scope, limit):
+            def search_by_pictures(self, picture_ids, scope, limit, _filters):
                 self.image_call = (picture_ids, scope, limit)
                 return ["22"]
 

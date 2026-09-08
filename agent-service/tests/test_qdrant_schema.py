@@ -28,7 +28,7 @@ class QdrantSchemaTests(unittest.TestCase):
                          ("GET", "/collections/labvision_picture_v1"))
         self.assertEqual((requests[1].method, requests[1].url.path),
                          ("PUT", "/collections/labvision_picture_v1"))
-        self.assertEqual(len(requests), 14)
+        self.assertEqual(len(requests), 17)
         self.assertTrue(all(r.headers["api-key"] == "secret" for r in requests))
 
     def test_existing_compatible_schema_is_idempotent(self):

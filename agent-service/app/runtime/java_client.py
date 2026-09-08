@@ -32,6 +32,7 @@ class PictureCandidate(BaseModel):
     height: int | None = None
     size: int | None = None
     format: str | None = None
+    createdAt: str | int | None = None
 
 
 class VisionInput(PictureCandidate):
@@ -95,13 +96,19 @@ class JavaTaskClient:
 
     def search_pictures(
         self, task_id: str, token: str, *, search_text: str, category: str | None = None,
-        tags: list[str] | None = None, limit: int = 10
+        tags: list[str] | None = None, limit: int = 10, filters: dict[str, Any] | None = None,
     ) -> list[PictureCandidate]:
+        body = {"searchText": search_text, "category": category, "tags": tags or [], "limit": limit}
+        allowed = ("formats", "createdAfter", "createdBefore", "minWidth", "minHeight",
+                   "maxSizeBytes", "sort")
+        for key in allowed:
+            if filters and key in filters:
+                body[key] = filters[key]
         data = self._request(
             "POST",
             f"/agent/internal/tasks/{task_id}/pictures/search",
             token,
-            json={"searchText": search_text, "category": category, "tags": tags or [], "limit": limit},
+            json=body,
         )
         if not isinstance(data, list):
             raise JavaGatewayError("Java picture search returned invalid data")

@@ -16,8 +16,8 @@ class KeywordExecutorTests(unittest.TestCase):
     def test_formats_permission_scoped_results_and_citations(self):
         calls = []
 
-        def search(text, category, tags, limit):
-            calls.append((text, category, tags, limit))
+        def search(text, category, tags, limit, filters):
+            calls.append((text, category, tags, limit, filters))
             return [PictureCandidate(
                 pictureId="2059881449783808001", spaceId="9", name="细胞显微图",
                 category="显微成像", tags='["细胞培养","荧光染色"]'
@@ -26,14 +26,16 @@ class KeywordExecutorTests(unittest.TestCase):
         result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
             self.context, search, lambda ids: [], lambda: None
         )
-        self.assertEqual(calls, [("显微 成像", None, [], 10)])
+        self.assertEqual(calls[0][:4], ("显微 成像", None, [], 10))
+        self.assertEqual(calls[0][4]["formats"], [])
+        self.assertEqual(calls[0][4]["sort"], "relevance")
         self.assertIn("2059881449783808001", result.answer)
         self.assertIn("细胞培养", result.answer)
         self.assertEqual(result.citations[0]["pictureId"], "2059881449783808001")
 
     def test_empty_result_is_explicit_and_has_no_citation(self):
         result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
-            self.context, lambda _text, _category, _tags, _limit: [], lambda ids: [], lambda: None
+            self.context, lambda *_: [], lambda ids: [], lambda: None
         )
         self.assertEqual(result.candidate_count, 0)
         self.assertEqual(result.citations, [])
@@ -42,7 +44,7 @@ class KeywordExecutorTests(unittest.TestCase):
     def test_authorized_vector_candidates_are_fused_with_keyword_results(self):
         class Semantic:
             enabled = True
-            def search(self, text, scope_key, limit):
+            def search(self, text, scope_key, limit, _filters):
                 self.call = (text, scope_key, limit)
                 return ["2", "3"]
 
@@ -57,7 +59,7 @@ class KeywordExecutorTests(unittest.TestCase):
         ]
         result = KeywordSearchExecutor(IntentParser(self._settings()), semantic).execute(
             self.context,
-            lambda _text, _category, _tags, _limit: keyword,
+            lambda *_: keyword,
             lambda ids: authorized if ids == ["2", "3"] else [],
             lambda: None,
         )

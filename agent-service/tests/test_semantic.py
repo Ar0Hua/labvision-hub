@@ -28,9 +28,15 @@ class SemanticRetrieverTests(unittest.TestCase):
             ]}})
 
         qdrant = httpx.Client(base_url="http://qdrant", transport=httpx.MockTransport(qdrant_handler))
-        ids = SemanticRetriever(settings(), embedding, qdrant).search("细胞", "space:9", 10)
+        filters = {"formats": ["png"], "minWidth": 1920, "createdAfter": "2026-05-01"}
+        ids = SemanticRetriever(settings(), embedding, qdrant).search(
+            "细胞", "space:9", 10, filters)
         self.assertEqual(ids, ["2059881449783808001"])
         body = json.loads(requests[0].content)
+        must = body["filter"]["must"]
+        self.assertIn({"key": "picFormat", "match": {"any": ["png"]}}, must)
+        self.assertIn({"key": "picWidth", "range": {"gte": 1920}}, must)
+        self.assertTrue(any(item.get("key") == "createdAtEpoch" for item in must))
         self.assertEqual(body["filter"]["must"][0]["match"]["value"], "space:9")
         self.assertEqual(requests[0].headers["api-key"], "qdrant-key")
         self.assertIn("pictures%2Fv1", str(requests[0].url))

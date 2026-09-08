@@ -88,9 +88,9 @@ class TaskRunner:
             )
             result = self.executor.execute(
                 context,
-                lambda text, category, tags, limit: self.java.search_pictures(
-                    signed.task_id, token, search_text=text, category=category, tags=tags, limit=limit
-                ),
+                lambda text, category, tags, limit, filters: self.java.search_pictures(
+                    signed.task_id, token, search_text=text, category=category, tags=tags,
+                    limit=limit, filters=filters),
                 lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
                 check_active,
             )

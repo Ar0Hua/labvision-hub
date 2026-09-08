@@ -48,6 +48,7 @@ class QdrantSchemaManager:
             "userId": "keyword", "reviewStatus": "integer", "isDelete": "integer",
             "category": "keyword", "picFormat": "keyword", "createdAtEpoch": "integer",
             "sourceUpdatedAtEpoch": "integer", "contentHash": "keyword", "phash": "keyword",
+            "picWidth": "integer", "picHeight": "integer", "picSize": "integer",
         }
         for field, schema in payload_indexes.items():
             response = self._client.put(

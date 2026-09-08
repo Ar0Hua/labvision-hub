@@ -1,4 +1,5 @@
 from urllib.parse import quote
+from datetime import date, datetime, time, timedelta, timezone
 
 import httpx
 
@@ -22,7 +23,8 @@ class SemanticRetriever:
     def enabled(self) -> bool:
         return bool(self._settings.dashscope_api_key and self._settings.embedding_model)
 
-    def search(self, text: str, scope_key: str, limit: int = 20) -> list[str]:
+    def search(self, text: str, scope_key: str, limit: int = 20,
+               filters: dict | None = None) -> list[str]:
         if not self.enabled:
             return []
         embedding_client = self._embedding_client or httpx.Client(
@@ -58,7 +60,7 @@ class SemanticRetriever:
                 json={
                     "query": vector,
                     "using": "text_dense",
-                    "filter": {"must": [{"key": "scopeKey", "match": {"value": scope_key}}]},
+                    "filter": self._filter(scope_key, filters),
                     "limit": min(max(limit, 1), 20),
                     "with_payload": ["pictureId"],
                     "with_vector": False,
@@ -80,7 +82,7 @@ class SemanticRetriever:
                 qdrant_client.close()
 
     def search_by_pictures(
-        self, picture_ids: list[str], scope_key: str, limit: int = 20
+        self, picture_ids: list[str], scope_key: str, limit: int = 20, filters: dict | None = None,
     ) -> list[str]:
         """Query Qdrant by already indexed image vectors; Java reauthorizes every result."""
         examples = []
@@ -100,6 +102,8 @@ class SemanticRetriever:
                        if self._settings.qdrant_api_key else {})
             collection = quote(self._settings.qdrant_collection, safe="")
             ranked: list[str] = []
+            query_filter = self._filter(scope_key, filters)
+            query_filter["must_not"] = [{"key": "pictureId", "match": {"any": examples}}]
             for picture_id in examples:
                 response = qdrant_client.post(
                     f"/collections/{collection}/points/query",
@@ -107,10 +111,7 @@ class SemanticRetriever:
                     json={
                         "query": int(picture_id),
                         "using": "image_dense",
-                        "filter": {
-                            "must": [{"key": "scopeKey", "match": {"value": scope_key}}],
-                            "must_not": [{"key": "pictureId", "match": {"any": examples}}],
-                        },
+                        "filter": query_filter,
                         "limit": min(max(limit, 1), 20),
                         "with_payload": ["pictureId"],
                         "with_vector": False,
@@ -128,3 +129,34 @@ class SemanticRetriever:
         finally:
             if self._qdrant_client is None:
                 qdrant_client.close()
+
+    @staticmethod
+    def _filter(scope_key: str, filters: dict | None = None) -> dict:
+        values = filters or {}
+        must = [
+            {"key": "scopeKey", "match": {"value": scope_key}},
+            {"key": "isDelete", "match": {"value": 0}},
+        ]
+        if scope_key == "public":
+            must.append({"key": "reviewStatus", "match": {"value": 1}})
+        if values.get("category"):
+            must.append({"key": "category", "match": {"value": values["category"]}})
+        for tag in values.get("tags") or []:
+            must.append({"key": "tags", "match": {"value": tag}})
+        if values.get("formats"):
+            must.append({"key": "picFormat", "match": {"any": values["formats"]}})
+        zone = timezone(timedelta(hours=8))
+        if values.get("createdAfter"):
+            after = datetime.combine(date.fromisoformat(values["createdAfter"]), time.min, zone)
+            must.append({"key": "createdAtEpoch", "range": {"gte": int(after.timestamp())}})
+        if values.get("createdBefore"):
+            next_day = date.fromisoformat(values["createdBefore"]) + timedelta(days=1)
+            before = datetime.combine(next_day, time.min, zone)
+            must.append({"key": "createdAtEpoch", "range": {"lt": int(before.timestamp())}})
+        if values.get("minWidth") is not None:
+            must.append({"key": "picWidth", "range": {"gte": values["minWidth"]}})
+        if values.get("minHeight") is not None:
+            must.append({"key": "picHeight", "range": {"gte": values["minHeight"]}})
+        if values.get("maxSizeBytes") is not None:
+            must.append({"key": "picSize", "range": {"lte": values["maxSizeBytes"]}})
+        return {"must": must}

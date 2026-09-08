@@ -8,7 +8,7 @@ from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.semantic import SemanticRetriever
 
 
-SearchPictures = Callable[[str, str | None, list[str], int], list[PictureCandidate]]
+SearchPictures = Callable[[str, str | None, list[str], int, dict], list[PictureCandidate]]
 AuthorizePictures = Callable[[list[str]], list[PictureCandidate]]
 CheckActive = Callable[[], None]
 
@@ -33,14 +33,25 @@ class KeywordSearchExecutor:
     ) -> ExecutionResult:
         intent = self._parser.parse(context.query)
         check_active()
-        keyword = search(intent.searchText, intent.category, intent.tags, intent.limit)
+        filters = {
+            "formats": intent.formats,
+            "category": intent.category,
+            "tags": intent.tags,
+            "createdAfter": intent.createdAfter.isoformat() if intent.createdAfter else None,
+            "createdBefore": intent.createdBefore.isoformat() if intent.createdBefore else None,
+            "minWidth": intent.minWidth,
+            "minHeight": intent.minHeight,
+            "maxSizeBytes": intent.maxSizeBytes,
+            "sort": intent.sort,
+        }
+        keyword = search(intent.searchText, intent.category, intent.tags, intent.limit, filters)
         check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
         if self._semantic and self._semantic.enabled:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
             try:
-                vector_ids = self._semantic.search(intent.searchText, scope_key, 20)
+                vector_ids = self._semantic.search(intent.searchText, scope_key, 20, filters)
                 check_active()
                 authorized = authorize(vector_ids)
                 check_active()
@@ -51,7 +62,7 @@ class KeywordSearchExecutor:
             if context.examplePictureIds:
                 try:
                     image_ids = self._semantic.search_by_pictures(
-                        context.examplePictureIds, scope_key, 20)
+                        context.examplePictureIds, scope_key, 20, filters)
                     check_active()
                     image_candidates = authorize(image_ids)
                     check_active()
