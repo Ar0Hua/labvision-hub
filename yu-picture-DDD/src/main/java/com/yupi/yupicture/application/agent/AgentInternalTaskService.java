@@ -1,4 +1,5 @@
 package com.yupi.yupicture.application.agent;
+import cn.hutool.json.JSONUtil;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.yupi.yupicture.domain.agent.*;
@@ -46,6 +47,7 @@ public class AgentInternalTaskService {
         result.put("userId",task.getUserId().toString());
         result.put("spaceId",stringId(conversation.getSpaceId()));
         result.put("query",message.getContent());
+        result.put("examplePictureIds",parsePictureIds(task.getExamplePictureIdsJson()));
         result.put("status",task.getStatus());
         return result;
     }
@@ -77,6 +79,15 @@ public class AgentInternalTaskService {
         events.append(taskId,eventType,"{\"status\":\""+request.getStatus()+"\",\"stage\":\""+request.getStage()+"\"}");
     }
 
+    private List<String> parsePictureIds(String value) {
+        if (value == null || value.trim().isEmpty()) return Collections.emptyList();
+        try {
+            List<Long> ids = JSONUtil.toList(value, Long.class);
+            List<String> result = new ArrayList<>();
+            for (Long id : ids) if (id != null && id > 0) result.add(id.toString());
+            return result;
+        } catch (RuntimeException exception) { deny(); return Collections.emptyList(); }
+    }
     private String stripBearer(String value) {
         if(value==null||!value.startsWith("Bearer ")) deny();
         return value.substring(7);

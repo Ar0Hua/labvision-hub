@@ -53,6 +53,12 @@
       </section>
 
       <footer class="composer">
+        <div class="example-picker">
+          <span>平台样例图</span>
+          <a-select v-model:value="selectedPictureIds" mode="tags" :max-tag-count="3"
+            :token-separators="[',', ' ']" placeholder="输入图片 ID，最多 5 张" />
+          <small>样例图会先由后端复核当前账号权限，再用于站内相似检索。</small>
+        </div>
         <a-textarea v-model:value="draft" :maxlength="8000" :auto-size="{ minRows: 2, maxRows: 5 }"
           placeholder="例如：查找最近的模型预测对比图，并说明可见差异" @press-enter="handleEnter" />
         <div class="composer-actions">
@@ -83,6 +89,8 @@ const conversations = ref<AgentConversation[]>([])
 const activeConversationId = ref('')
 const turns = ref<Turn[]>([])
 const draft = ref('')
+const routePictureId = typeof route.query.pictureId === 'string' ? route.query.pictureId : ''
+const selectedPictureIds = ref<string[]>(routePictureId ? [routePictureId] : [])
 const loadingConversations = ref(false)
 const loadingHistory = ref(false)
 const submitting = ref(false)
@@ -145,13 +153,21 @@ function buildTurn(task: AgentTask, query: string, events: AgentTaskEvent[]) {
 }
 
 async function submit() {
-  const content = draft.value.trim()
+  const ids = [...new Set(selectedPictureIds.value.map((value) => value.trim()).filter(Boolean))]
+  const maxLong = '9223372036854775807'
+  const invalidId = ids.some((value) => !/^[1-9]\d{0,18}$/.test(value)
+    || (value.length === maxLong.length && value > maxLong))
+  if (ids.length > 5 || invalidId) {
+    antMessage.error('请输入 1 至 5 个有效的平台图片 ID')
+    return
+  }
+  const content = draft.value.trim() || (ids.length ? '查找与所选图片视觉相似的资产' : '')
   if (!content || submitting.value || activeTask.value) return
   submitting.value = true
   try {
     if (!activeConversationId.value) await createConversation()
     if (!activeConversationId.value) return
-    const response = await submitAgentMessage(activeConversationId.value, content)
+    const response = await submitAgentMessage(activeConversationId.value, content, ids)
     const task = response.data.data
     if (response.data.code !== 0 || !task) throw new Error(response.data.message || '提交失败')
     const turn: Turn = { task, query: content, answer: '', citations: [], tools: [], cursor: '0' }
@@ -224,6 +240,8 @@ async function scrollToBottom() { await nextTick(); if (messageContainer.value) 
 .panel-title small, .conversation-item small { display: block; color: #8b95a7; margin-top: 3px; }
 .conversation-item { width: 100%; padding: 11px 12px; margin-bottom: 6px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; color: #334155; }
 .conversation-item:hover, .conversation-item.active { background: #e8f2ff; color: #1677ff; }
+.example-picker { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px 10px; align-items: center; margin-bottom: 10px; }
+.example-picker small { grid-column: 2; color: #8b95a7; }
 .chat-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
 .chat-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px; border-bottom: 1px solid #edf0f4; }
 .chat-header h2 { margin: 0 0 4px; font-size: 20px; }.chat-header p { margin: 0; color: #7a8494; }

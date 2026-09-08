@@ -68,6 +68,9 @@
                         <a-button :icon="h(ShareAltOutlined)" type="primary" ghost @click="doShare">
                             分享
                         </a-button>
+                        <a-button :href="agentLink" type="default">
+                            Agent 查相似
+                        </a-button>
                         <a-button v-if="canEdit" :icon="h(EditOutlined)" type="default" @click="doEdit">
                             编辑
                         </a-button>
@@ -106,6 +109,13 @@ const picture = ref<API.PictureVO>({})
 const loginUserStore = useLoginUserStore()
 
 // 判断是否具有编辑权限
+const agentLink = computed(() => {
+    if (!picture.value.id) return '/agent'
+    const params = new URLSearchParams({ pictureId: String(picture.value.id) })
+    if (picture.value.spaceId) params.set('spaceId', String(picture.value.spaceId))
+    return `/agent?${params.toString()}`
+})
+
 const canEdit = computed(() => {
     const loginUser = loginUserStore.loginUser;
     // 未登录不能编辑

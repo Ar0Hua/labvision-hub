@@ -1,4 +1,5 @@
 package com.yupi.yupicture.application.agent;
+import cn.hutool.json.JSONUtil;
 
 import com.yupi.yupicture.domain.agent.AgentMessage;
 import com.yupi.yupicture.domain.agent.AgentTask;
@@ -13,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
-import java.util.UUID;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,17 +22,33 @@ public class AgentTaskService {
     @Resource private AgentConversationService conversations;
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskMapper mapper;
+    @Resource private AgentPictureService pictures;
     @Resource private AgentTaskEventService events;
     @Resource private ApplicationEventPublisher publisher;
 
-    /** 消息和任务必须同时成功或同时回滚。 */
     @Transactional(rollbackFor = Exception.class)
     public AgentTaskVO submit(String conversationId, String content, User user) {
+        return submit(conversationId, content, Collections.emptyList(), user);
+    }
+
+    /** 消息和任务必须同时成功或同时回滚。 */
+    @Transactional(rollbackFor = Exception.class)
+    public AgentTaskVO submit(String conversationId, String content,
+                              List<Long> examplePictureIds, User user) {
+        List<Long> examples = examplePictureIds == null ? Collections.emptyList()
+                : new ArrayList<>(new LinkedHashSet<>(examplePictureIds));
+        if (examples.size() > 5 || examples.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "样例图片必须为 1 至 5 个有效图片 ID");
+        }
+        if (!examples.isEmpty()) {
+            pictures.details(conversationId, examples, user);
+        }
         AgentMessage message = messages.createUserMessage(conversationId, content, user);
         AgentTask task = new AgentTask();
         task.setId(UUID.randomUUID().toString());
         task.setConversationId(conversationId);
         task.setInputMessageId(message.getId());
+        task.setExamplePictureIdsJson(examples.isEmpty() ? null : JSONUtil.toJsonStr(examples));
         task.setUserId(user.getId());
         task.setStatus("PENDING");
         task.setStage("QUEUED");

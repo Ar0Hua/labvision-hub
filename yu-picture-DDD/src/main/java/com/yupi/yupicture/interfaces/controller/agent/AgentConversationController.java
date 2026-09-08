@@ -45,7 +45,8 @@ public class AgentConversationController {
     }
     @PostMapping("/{id}/messages")
     public BaseResponse<AgentTaskVO> createMessage(@PathVariable String id,@RequestBody AgentMessageCreateRequest body,HttpServletRequest request) {
-        return ResultUtils.success(tasks.submit(id,body==null?null:body.getContent(),users.getLoginUser(request)));
+        return ResultUtils.success(tasks.submit(id,body==null?null:body.getContent(),
+                body==null?null:body.getExamplePictureIds(),users.getLoginUser(request)));
     }
     @GetMapping("/{id}/messages")
     public BaseResponse<List<AgentMessage>> listMessages(@PathVariable String id,HttpServletRequest request) {

@@ -38,8 +38,8 @@ class KeywordSearchExecutor:
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
         if self._semantic and self._semantic.enabled:
+            scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
             try:
-                scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
                 vector_ids = self._semantic.search(intent.searchText, scope_key, 20)
                 check_active()
                 authorized = authorize(vector_ids)
@@ -48,7 +48,21 @@ class KeywordSearchExecutor:
                 channels["vector"] = [picture.pictureId for picture in authorized]
             except Exception:
                 pass
-        ranking = reciprocal_rank_fusion(channels, top_k=intent.limit)
+            if context.examplePictureIds:
+                try:
+                    image_ids = self._semantic.search_by_pictures(
+                        context.examplePictureIds, scope_key, 20)
+                    check_active()
+                    image_candidates = authorize(image_ids)
+                    check_active()
+                    metadata.update({picture.pictureId: picture for picture in image_candidates})
+                    channels["image"] = [picture.pictureId for picture in image_candidates]
+                except Exception:
+                    pass
+        weights = {name: (1.5 if name == "image" else 1.0) for name in channels}
+        ranking = reciprocal_rank_fusion(
+            channels, top_k=intent.limit, weights=weights
+        )
         candidates = [metadata[item.picture_id] for item in ranking if item.picture_id in metadata]
         citations = [
             {

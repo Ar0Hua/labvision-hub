@@ -135,3 +135,10 @@
 - 索引 Worker 使用受控签名缩略图生成文本/图片命名向量，Qdrant 增加完整权限与元数据 payload index。
 - Python 全量 39 项测试通过，Java Agent 39 项测试通过；未执行迁移或连接真实外部服务。
 - 详细交付记录见 `agent-service/STEP-35.md`。
+
+# 2026-09-08 - Step 36：平台图片示例检索
+
+- 消息任务支持持久化最多 5 张平台示例图片，并在任务创建前完成 Java 权限校验。
+- 使用 Qdrant `image_dense` 执行同权限范围的视觉相似召回，结果回源 Java 二次鉴权后参与加权 RRF 融合。
+- 前端工作台支持图片 ID 选择，图片详情页提供自动携带图片与空间上下文的“Agent 查相似”入口。
+- Python 41 项、Java Agent 41 项测试及前端生产构建通过；详细记录见 `agent-service/STEP-36.md`。

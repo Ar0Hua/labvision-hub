@@ -10,7 +10,7 @@ export const listAgentConversations = () => request<ApiResponse<AgentConversatio
 export const createAgentConversation = (spaceId?: string) => request<ApiResponse<{ conversationId: string }>>('/api/agent/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: spaceId ? { spaceId } : {} })
 export const listAgentMessages = (id: string) => request<ApiResponse<AgentMessage[]>>(`/api/agent/conversations/${id}/messages`, { method: 'GET' })
 export const listAgentTasks = (id: string) => request<ApiResponse<AgentTask[]>>(`/api/agent/conversations/${id}/tasks`, { method: 'GET' })
-export const submitAgentMessage = (id: string, content: string) => request<ApiResponse<AgentTask>>(`/api/agent/conversations/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: { content } })
+export const submitAgentMessage = (id: string, content: string, examplePictureIds: string[] = []) => request<ApiResponse<AgentTask>>(`/api/agent/conversations/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: { content, examplePictureIds } })
 export const listAgentTaskEvents = (id: string, afterEventId = '0') => request<ApiResponse<AgentTaskEvent[]>>(`/api/agent/tasks/${id}/events/history`, { method: 'GET', params: { afterEventId, limit: 200 } })
 export const cancelAgentTask = (id: string) => request<ApiResponse<AgentTask>>(`/api/agent/tasks/${id}/cancel`, { method: 'POST' })
 export const resumeAgentTask = (id: string) => request<ApiResponse<AgentTask>>(`/api/agent/tasks/${id}/resume`, { method: 'POST' })

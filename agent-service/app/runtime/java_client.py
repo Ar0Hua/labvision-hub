@@ -15,6 +15,7 @@ class TaskContext(BaseModel):
     userId: str
     spaceId: str | None
     query: str
+    examplePictureIds: list[str] = Field(default_factory=list, max_length=5)
     status: str
 
 
