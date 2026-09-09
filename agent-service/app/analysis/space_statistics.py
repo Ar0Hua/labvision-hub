@@ -70,10 +70,34 @@ class Governance(BaseModel):
     duplicateExcessCount: int = Field(default=0, ge=0)
 
 
+class WindowTotals(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    count: int = Field(ge=0)
+    totalSize: int = Field(ge=0)
+
+
+class UploaderStat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    uploaderId: str | None = None
+    count: int = Field(ge=0)
+
+
+class StatisticsWindow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    startDate: str | None = None
+    endDate: str | None = None
+    uploaderId: str | None = None
+    totals: WindowTotals
+    categories: list[CategoryStat] = Field(max_length=20)
+    uploaders: list[UploaderStat] = Field(max_length=20)
+    trend: list[TrendStat] = Field(max_length=24)
+
+
 class SpaceStatistics(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scope: SpaceScope
     capturedAt: datetime
+    window: StatisticsWindow | None = None
     governance: Governance | None = None
     usage: SpaceUsage
     categoryDistribution: list[CategoryStat] = Field(max_length=20)
@@ -92,6 +116,7 @@ class SpaceStatistics(BaseModel):
 
 class SpaceStatisticsComposer:
     TRIGGERS = (
+        "上传人统计", "上传行为",
         "无标签", "未打标签", "重复率", "低质量率", "分辨率分布", "未维护",
         "空间统计", "空间容量", "容量使用", "使用率", "图片数量", "资产数量",
         "分类分布", "标签分布", "大小分布", "上传趋势", "上传数量",
@@ -149,6 +174,18 @@ class SpaceStatisticsComposer:
             values = "、".join(
                 f"{item.period}：{item.count} 张" for item in summary.monthlyUploadTrend[-6:])
             lines.append("- 最近上传趋势：" + values)
+        if summary.window:
+            w = summary.window
+            filtered = [
+                f"筛选窗口：{w.startDate or '不限起始'} 至 {w.endDate or '不限结束'}（UTC+8，包含结束日）；"
+                f"上传人 ID：{w.uploaderId or '全部'}。",
+                f"- 窗口图片数量：{w.totals.count}；文件总大小：{cls._size(w.totals.totalSize)}。",
+                "- 窗口分类：" + "、".join(f"{c.category or '未分类'} {c.count}" for c in w.categories),
+                "- 窗口上传人：" + "、".join(f"{u.uploaderId or '未知'} {u.count}" for u in w.uploaders),
+                "- 窗口月度趋势：" + "、".join(f"{t.period} {t.count}" for t in w.trend),
+                "", "以下是当前全空间快照，不受上述窗口筛选限制：",
+            ]
+            lines = filtered + lines
         lines.append("以上数值来自当前权限范围内的数据库统计，不是模型估算。")
         return "\n".join(lines)
 

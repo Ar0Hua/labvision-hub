@@ -26,6 +26,7 @@ public class AgentInternalSpaceAnalyzeService {
     @Resource private UserRepository users;
     @Resource private SpaceAnalyzeApplicationService analyze;
     @Resource private com.yupi.yupicture.infrastructure.mapper.AgentGovernanceMapper governance;
+    @Resource private com.yupi.yupicture.infrastructure.mapper.AgentStatisticsWindowMapper windows;
     private Clock clock = Clock.systemUTC();
 
     public Map<String, Object> summary(String bearerToken, String taskId) {
@@ -74,6 +75,20 @@ public class AgentInternalSpaceAnalyzeService {
         if (metadata != null) metrics.putAll(metadata);
         if (features != null) metrics.putAll(features);
         result.put("governance", metrics);
+        AgentStatisticsWindow filter=AgentStatisticsWindow.parse(
+                (String)context.get("query"), java.time.LocalDate.now(clock.withZone(java.time.ZoneId.of("Asia/Shanghai"))));
+        if(filter.active()) {
+            Map<String,Object> window=new LinkedHashMap<>();
+            window.put("startDate",filter.startDate); window.put("endDate",filter.endDate);
+            window.put("uploaderId",filter.uploaderId==null?null:filter.uploaderId.toString());
+            window.put("totals",windows.totals(spaceId,filter.start,filter.end,filter.uploaderId));
+            window.put("categories",windows.categories(spaceId,filter.start,filter.end,filter.uploaderId));
+            window.put("uploaders",windows.uploaders(spaceId,filter.start,filter.end,filter.uploaderId));
+            List<Map<String,Object>> trendRows=windows.trend(spaceId,filter.start,filter.end,filter.uploaderId);
+            Collections.reverse(trendRows);
+            window.put("trend",trendRows);
+            result.put("window",window);
+        }
         return result;
     }
 

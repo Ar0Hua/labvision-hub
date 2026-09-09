@@ -255,3 +255,7 @@
 # Step 57：元数据分组
 
 - 补充元数据和按属性的真实引用分组，详见 agent-service/STEP-57.md。
+
+# Step 58：时间窗口统计
+
+- 补充日期和上传人筛选的确定性统计，详见 agent-service/STEP-58.md。
