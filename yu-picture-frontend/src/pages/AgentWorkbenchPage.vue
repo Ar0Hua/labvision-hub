@@ -37,11 +37,15 @@
                 :message="turn.task.errorMessage || '任务执行失败'" show-icon />
               <div v-else class="waiting">正在检索和核验证据…</div>
               <div v-if="turn.citations.length" class="citations">
-                <router-link v-for="citation in turn.citations" :key="citation.pictureId"
-                  :to="`/picture/${citation.pictureId}`" class="citation-card">
+                <div v-for="citation in turn.citations" :key="citation.pictureId" class="citation-card">
+                <router-link :to="`/picture/${citation.pictureId}`" class="citation-card">
                   <span>{{ citation.name || '未命名图片' }}</span>
                   <small>ID {{ citation.pictureId }}{{ citation.category ? ` · ${citation.category}` : '' }}</small>
                 </router-link>
+                <a-select style="width: 100%; margin-top: 8px" placeholder="反馈相关性"
+                  :value="feedbackValues[turn.task.taskId + ':' + citation.pictureId]"
+                  :options="feedbackOptions" @change="value => saveFeedback(turn, citation.pictureId, String(value))" />
+                </div>
               </div>
               <a-space v-if="turn.answer && turn.task.status === 'SUCCEEDED'" class="task-actions">
                 <a-button size="small" @click="exportReport(turn, 'md')">下载 Markdown</a-button>
@@ -109,6 +113,21 @@ const activeTurn = computed(() => [...turns.value].reverse().find((turn) => ['PE
 const activeTask = computed(() => activeTurn.value?.task)
 onMounted(loadConversations)
 onBeforeUnmount(() => disconnect?.())
+
+const feedbackValues = ref<Record<string, string>>({})
+const feedbackOptions = [
+  { value: 'relevant', label: '相关' }, { value: 'irrelevant', label: '不相关' },
+  { value: 'duplicate', label: '疑似重复' }, { value: 'permission_issue', label: '权限异常' },
+]
+async function saveFeedback(turn: Turn, pictureId: string, label: string) {
+  try {
+    const response = await request('/api/agent/tasks/' + turn.task.taskId + '/feedback',
+      { method: 'POST', data: { pictureId, label } })
+    if (response.data.code !== 0) throw new Error(response.data.message || '反馈保存失败')
+    feedbackValues.value[turn.task.taskId + ':' + pictureId] = label
+    antMessage.success('反馈已保存')
+  } catch (error) { showError(error, '反馈保存失败') }
+}
 
 async function exportReport(turn: Turn, format: 'md' | 'json') {
   try {
@@ -184,6 +203,12 @@ async function selectConversation(id: string) {
     turns.value = await Promise.all((taskResponse.data.data || []).map(async (task) => {
       const query = messages.find((item) => item.id === task.inputMessageId)?.content || '历史请求'
       const response = await listAgentTaskEvents(task.taskId)
+      const feedback = await request('/api/agent/tasks/' + task.taskId + '/feedback', { method: 'GET' })
+      if (feedback.data.code === 0) {
+        for (const item of feedback.data.data || []) {
+          feedbackValues.value[task.taskId + ':' + item.pictureId] = item.label
+        }
+      }
       return buildTurn(task, query, response.data.data || [])
     }))
     if (activeTurn.value) connect(activeTurn.value)
