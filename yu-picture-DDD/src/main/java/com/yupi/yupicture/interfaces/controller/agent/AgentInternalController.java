@@ -4,6 +4,7 @@ import com.yupi.yupicture.application.agent.AgentInternalTaskService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureSearchService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureDetailsService;
 import com.yupi.yupicture.application.agent.AgentInternalPictureVisionService;
+import com.yupi.yupicture.application.agent.AgentInternalSpaceAnalyzeService;
 import com.yupi.yupicture.infrastructure.common.*;
 import com.yupi.yupicture.interfaces.dto.agent.*;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ public class AgentInternalController {
     @Resource private AgentInternalPictureSearchService pictureSearch;
     @Resource private AgentInternalPictureDetailsService pictureDetails;
     @Resource private AgentInternalPictureVisionService pictureVision;
+    @Resource private AgentInternalSpaceAnalyzeService spaceAnalyze;
 
     @GetMapping("/{id}/context")
     public BaseResponse<Map<String,Object>> context(@PathVariable String id,
@@ -55,5 +57,11 @@ public class AgentInternalController {
             @RequestBody AgentInternalPictureIdsRequest body) {
         return ResultUtils.success(pictureVision.inputs(authorization,id,
                 body == null ? null : body.getPictureIds()));
+    }
+
+    @GetMapping("/{id}/spaces/summary")
+    public BaseResponse<Map<String,Object>> spaceSummary(@PathVariable String id,
+            @RequestHeader("Authorization") String authorization) {
+        return ResultUtils.success(spaceAnalyze.summary(authorization, id));
     }
 }

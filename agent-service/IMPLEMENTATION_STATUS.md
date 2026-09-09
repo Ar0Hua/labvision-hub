@@ -11,6 +11,7 @@
 - 平台图片示例的 `image_dense` 站内相似检索，示例与结果均由 Java 校验权限。
 - 格式、日期、尺寸、文件大小等结构化条件在 MySQL 和 Qdrant 各召回通道一致生效。
 - 多轮追问可继承、覆盖或重置结构化条件，并可排除上一轮结果或以其继续相似检索。
+- DDD 后端提供绑定签名任务范围的确定性空间统计摘要内部接口。
 - transactional outbox、租约领取、确认/重试和可重放索引 Worker。
 - LangGraph 三阶段工作流、Redis checkpoint、有界结构化会话摘要和总任务超时。
 - Java 再鉴权后的短期 COS 缩略图 URL，以及 DashScope/Qwen 视觉观察。
@@ -29,7 +30,7 @@
 
 ## 验证结果
 
-- Java Agent：Step 37 回归 43 项测试通过。
+- Java Agent：Step 40 全量 45 项测试通过。
 - Python Agent：Step 39 全量 48 项测试通过。
 - 前端：Step 36 Vite 生产构建成功。
 - 未连接真实 DashScope、Qdrant、COS 或生产数据库，未执行任何迁移。
