@@ -26,9 +26,14 @@ class MultimodalExecutorTests(unittest.TestCase):
             taskId="task", conversationId="conversation", userId="7", spaceId="9",
             query="寻找同类荧光图", examplePictureIds=["11"], status="RUNNING")
         candidate = PictureCandidate(pictureId="22", spaceId="9", name="候选图")
+        example = PictureCandidate(pictureId="11", spaceId="9", name="示例图")
+
+        def authorize(ids):
+            return [item for item in (example, candidate) if item.pictureId in ids]
+
 
         result = KeywordSearchExecutor(IntentParser(settings), semantic).execute(
-            context, lambda *_: [], lambda ids: [candidate] if ids == ["22"] else [],
+            context, lambda *_: [], authorize,
             lambda: None)
 
         self.assertEqual(semantic.image_call, (["11"], "space:9", 20))

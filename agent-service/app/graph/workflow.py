@@ -92,7 +92,14 @@ class LangGraphWorkflow:
             check_active()
             stateful = getattr(self._executor, "execute_with_state", None)
             if callable(stateful):
-                result = stateful(context, search, authorize, check_active, state.get("intent_state"))
+                previous_result_ids = [
+                    item["pictureId"] for item in state.get("citations", [])
+                    if item.get("pictureId")
+                ][:20]
+                result = stateful(
+                    context, search, authorize, check_active,
+                    state.get("intent_state"), previous_result_ids,
+                )
             else:
                 result = self._executor.execute(context, search, authorize, check_active)
             return {

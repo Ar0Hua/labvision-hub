@@ -103,7 +103,9 @@ class SemanticRetriever:
             collection = quote(self._settings.qdrant_collection, safe="")
             ranked: list[str] = []
             query_filter = self._filter(scope_key, filters)
-            query_filter["must_not"] = [{"key": "pictureId", "match": {"any": examples}}]
+            query_filter.setdefault("must_not", []).append(
+                {"key": "pictureId", "match": {"any": examples}}
+            )
             for picture_id in examples:
                 response = qdrant_client.post(
                     f"/collections/{collection}/points/query",
@@ -159,4 +161,9 @@ class SemanticRetriever:
             must.append({"key": "picHeight", "range": {"gte": values["minHeight"]}})
         if values.get("maxSizeBytes") is not None:
             must.append({"key": "picSize", "range": {"lte": values["maxSizeBytes"]}})
-        return {"must": must}
+        result = {"must": must}
+        if values.get("excludePictureIds"):
+            result["must_not"] = [{
+                "key": "pictureId", "match": {"any": values["excludePictureIds"]},
+            }]
+        return result

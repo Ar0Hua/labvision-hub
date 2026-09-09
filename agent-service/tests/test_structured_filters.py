@@ -33,7 +33,7 @@ class StructuredFilterTests(unittest.TestCase):
 
     def test_executor_forwards_only_typed_filters(self):
         class Parser:
-            def parse(self, _query, _previous=None):
+            def parse(self, _query, _previous=None, _previous_results=None):
                 return SearchIntent(searchText="河道", formats=["jpg"], minWidth=2048,
                                     createdAfter="2026-06-01", sort="newest")
 

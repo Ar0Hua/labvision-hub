@@ -32,13 +32,16 @@ class KeywordSearchExecutor:
         self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
         check_active: CheckActive,
     ) -> ExecutionResult:
-        return self.execute_with_state(context, search, authorize, check_active, None)
+        return self.execute_with_state(context, search, authorize, check_active, None, [])
 
     def execute_with_state(
         self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
         check_active: CheckActive, previous_intent: dict | None,
+        previous_result_ids: list[str],
     ) -> ExecutionResult:
-        intent = self._parser.parse(context.query, previous_intent)
+        intent = self._parser.parse(context.query, previous_intent, previous_result_ids)
+        if context.examplePictureIds:
+            intent.examplePictureIds = context.examplePictureIds
         check_active()
         filters = {
             "formats": intent.formats,
@@ -50,8 +53,14 @@ class KeywordSearchExecutor:
             "minHeight": intent.minHeight,
             "maxSizeBytes": intent.maxSizeBytes,
             "sort": intent.sort,
+            "excludePictureIds": intent.excludePictureIds,
         }
-        keyword = search(intent.searchText, intent.category, intent.tags, intent.limit, filters)
+        excluded = set(intent.excludePictureIds)
+        keyword = [
+            picture for picture in search(
+                intent.searchText, intent.category, intent.tags, intent.limit, filters)
+            if picture.pictureId not in excluded
+        ]
         check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
@@ -66,10 +75,18 @@ class KeywordSearchExecutor:
                 channels["vector"] = [picture.pictureId for picture in authorized]
             except Exception:
                 pass
-            if context.examplePictureIds:
+            if intent.examplePictureIds:
                 try:
+                    example_candidates = authorize(intent.examplePictureIds)
+                    allowed_examples = {picture.pictureId for picture in example_candidates}
+                    intent.examplePictureIds = [
+                        picture_id for picture_id in intent.examplePictureIds
+                        if picture_id in allowed_examples
+                    ]
+                    if not intent.examplePictureIds:
+                        raise ValueError("no authorized example pictures")
                     image_ids = self._semantic.search_by_pictures(
-                        context.examplePictureIds, scope_key, 20, filters)
+                        intent.examplePictureIds, scope_key, 20, filters)
                     check_active()
                     image_candidates = authorize(image_ids)
                     check_active()
@@ -81,7 +98,10 @@ class KeywordSearchExecutor:
         ranking = reciprocal_rank_fusion(
             channels, top_k=intent.limit, weights=weights
         )
-        candidates = [metadata[item.picture_id] for item in ranking if item.picture_id in metadata]
+        candidates = [
+            metadata[item.picture_id] for item in ranking
+            if item.picture_id in metadata and item.picture_id not in excluded
+        ]
         citations = [
             {
                 "pictureId": picture.pictureId,

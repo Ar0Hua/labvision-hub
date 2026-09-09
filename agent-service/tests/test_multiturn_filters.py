@@ -37,8 +37,8 @@ class MultiTurnFilterTests(unittest.TestCase):
         class Parser:
             calls = []
 
-            def parse(self, query, previous=None):
-                self.calls.append(previous)
+            def parse(self, query, previous=None, previous_results=None):
+                self.calls.append((previous, previous_results))
                 if previous is None:
                     return SearchIntent(searchText=query, formats=["png"])
                 self.assert_previous(previous)
@@ -58,8 +58,10 @@ class MultiTurnFilterTests(unittest.TestCase):
         workflow.execute(self._context("task-2", "分辨率再高一点"), search,
                          lambda _: [], lambda: None)
 
-        self.assertIsNone(parser.calls[0])
-        self.assertEqual(parser.calls[1]["formats"], ["png"])
+        self.assertIsNone(parser.calls[0][0])
+        self.assertEqual(parser.calls[0][1], [])
+        self.assertEqual(parser.calls[1][0]["formats"], ["png"])
+        self.assertEqual(parser.calls[1][1], [])
         self.assertEqual(captured[1]["formats"], ["png"])
         self.assertEqual(captured[1]["minWidth"], 2048)
         state = workflow.state(self._context("task-2", "ignored"))
