@@ -182,6 +182,7 @@ class TaskRunner:
             answer=result.answer + "\n\n视觉模型观察（不代表实验事实）：\n" + analysis,
             citations=result.citations,
             candidate_count=result.candidate_count,
+            intent_state=result.intent_state,
         )
 
     def _ensure_active(self, signed: ServiceContext, token: str) -> None:

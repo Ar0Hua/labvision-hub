@@ -18,6 +18,7 @@ class ExecutionResult:
     answer: str
     citations: list[dict[str, str | None]]
     candidate_count: int
+    intent_state: dict | None = None
 
 
 class KeywordSearchExecutor:
@@ -31,7 +32,13 @@ class KeywordSearchExecutor:
         self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
         check_active: CheckActive,
     ) -> ExecutionResult:
-        intent = self._parser.parse(context.query)
+        return self.execute_with_state(context, search, authorize, check_active, None)
+
+    def execute_with_state(
+        self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
+        check_active: CheckActive, previous_intent: dict | None,
+    ) -> ExecutionResult:
+        intent = self._parser.parse(context.query, previous_intent)
         check_active()
         filters = {
             "formats": intent.formats,
@@ -87,6 +94,7 @@ class KeywordSearchExecutor:
             return ExecutionResult(
                 answer="当前会话可访问的图片中，没有找到与该关键词匹配的视觉资产。",
                 citations=[],
+                intent_state=intent.model_dump(mode="json"),
                 candidate_count=0,
             )
         lines = [f"在当前会话可访问范围内找到 {len(candidates)} 项相关视觉资产："]
@@ -104,7 +112,8 @@ class KeywordSearchExecutor:
             lines.append(f"{index}. {name}{suffix} [图片 ID: {picture.pictureId}]")
         if len(candidates) > 5:
             lines.append(f"另有 {len(candidates) - 5} 项结果，可继续缩小关键词范围。")
-        return ExecutionResult("\n".join(lines), citations, len(candidates))
+        return ExecutionResult("\n".join(lines), citations, len(candidates),
+                               intent.model_dump(mode="json"))
 
     @staticmethod
     def _short(value: str, limit: int) -> str:

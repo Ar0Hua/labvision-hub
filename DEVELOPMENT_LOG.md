@@ -149,3 +149,10 @@
 - Java 在已签名会话空间内执行参数化 SQL 过滤，文本/图像向量召回同步使用相同 Qdrant payload filter。
 - Python→Java 契约采用字段白名单，拒绝 raw SQL、未知格式、非法日期和越界数值。
 - Python 44 项、Java Agent 43 项测试通过；详细记录见 `agent-service/STEP-37.md`。
+
+# 2026-09-09 - Step 38：多轮结构化检索状态
+
+- LangGraph checkpoint 新增严格验证的 `SearchIntent` 状态，在同一用户与会话内继承结构化过滤条件。
+- 千问根据本轮问题与上轮意图输出完整合并状态；明确重置时清空，模型故障时执行确定性继承/重置。
+- 每轮空间范围仍取自新的 Java 签名任务上下文，不把旧 checkpoint 当作授权凭据。
+- Python 46 项测试通过；详细记录见 `agent-service/STEP-38.md`。

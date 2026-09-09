@@ -28,6 +28,7 @@ class WorkflowState(TypedDict, total=False):
     citations: list[dict[str, str | None]]
     candidate_count: int
     recent_turns: Annotated[list[TurnSummary], _recent_turns]
+    intent_state: dict
 
 
 class BaseExecutor:
@@ -64,6 +65,7 @@ class LangGraphWorkflow:
             answer=output["answer"],
             citations=output.get("citations", []),
             candidate_count=output.get("candidate_count", 0),
+            intent_state=output.get("intent_state"),
         )
 
     def state(self, context: TaskContext) -> WorkflowState:
@@ -86,14 +88,19 @@ class LangGraphWorkflow:
             check_active()
             return {"stage": "PLANNING"}
 
-        def retrieve(_: WorkflowState) -> WorkflowState:
+        def retrieve(state: WorkflowState) -> WorkflowState:
             check_active()
-            result = self._executor.execute(context, search, authorize, check_active)
+            stateful = getattr(self._executor, "execute_with_state", None)
+            if callable(stateful):
+                result = stateful(context, search, authorize, check_active, state.get("intent_state"))
+            else:
+                result = self._executor.execute(context, search, authorize, check_active)
             return {
                 "stage": "RETRIEVED",
                 "answer": result.answer,
                 "citations": result.citations,
                 "candidate_count": result.candidate_count,
+                "intent_state": result.intent_state or state.get("intent_state"),
             }
 
         def complete(state: WorkflowState) -> WorkflowState:
