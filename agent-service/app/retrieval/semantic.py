@@ -6,6 +6,7 @@ from urllib.parse import quote
 import httpx
 
 from app.config import Settings
+from app.runtime.budget import reserve
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class SemanticRetriever:
             timeout=self._settings.qdrant_timeout_seconds,
         )
         try:
+            reserve(model=True)
             embedding_response = embedding_client.post(
                 "/embeddings",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
@@ -62,6 +64,7 @@ class SemanticRetriever:
             if self._settings.qdrant_api_key:
                 headers["api-key"] = self._settings.qdrant_api_key
             collection = quote(self._settings.qdrant_collection, safe="")
+            reserve()
             response = qdrant_client.post(
                 f"/collections/{collection}/points/query",
                 headers=headers,
@@ -115,6 +118,7 @@ class SemanticRetriever:
                 {"key": "pictureId", "match": {"any": examples}}
             )
             for picture_id in examples:
+                reserve()
                 response = qdrant_client.post(
                     f"/collections/{collection}/points/query",
                     headers=headers,

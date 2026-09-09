@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from app.analysis.space_statistics import SpaceStatistics
 from app.config import Settings
+from app.runtime.budget import reserve
 
 
 class TaskContext(BaseModel):
@@ -175,6 +176,8 @@ class JavaTaskClient:
             self._client.close()
 
     def _request(self, method: str, path: str, token: str, **kwargs: Any) -> Any:
+        if not path.endswith(("/events", "/state")):
+            reserve()
         response = self._client.request(
             method, path, headers={"Authorization": f"Bearer {token}"}, **kwargs
         )

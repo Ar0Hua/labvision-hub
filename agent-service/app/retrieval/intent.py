@@ -6,6 +6,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from app.config import Settings
+from app.runtime.budget import reserve
 
 
 class SearchIntent(BaseModel):
@@ -129,6 +130,7 @@ class IntentParser:
             timeout=self._settings.model_timeout_seconds,
         )
         try:
+            reserve(model=True, output_tokens=256)
             response = client.post(
                 "/chat/completions",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},

@@ -4,6 +4,7 @@ import time
 from typing import Protocol
 
 from app.config import Settings
+from app.runtime.budget import TaskBudget, BudgetExceeded, active_budget
 from app.runtime.java_client import JavaTaskClient, PictureCandidate, TaskContext
 from app.retrieval.keyword_executor import (
     AuthorizePictures, CheckActive, ExecutionResult, KeywordSearchExecutor, SearchPictures,
@@ -54,6 +55,9 @@ class TaskRunner:
     vision: VisionAnalyzer | None = None
     timeout_seconds: float = 120
     semantic: SemanticRetriever | None = None
+    max_tool_calls: int = 100
+    max_model_calls: int = 10
+    max_output_tokens: int = 8000
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -65,15 +69,19 @@ class TaskRunner:
             VisionAnalyzer(settings),
             settings.task_timeout_seconds,
             semantic,
+            settings.max_tool_calls, settings.max_model_calls, settings.max_output_tokens,
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:
+        budget = TaskBudget(self.max_tool_calls, self.max_model_calls, self.max_output_tokens)
+        budget_token = active_budget.set(budget)
         running = False
         started = time.monotonic()
         outcome = "ignored"
         empty_result = False
         deadline = started + self.timeout_seconds
         def check_active() -> None:
+            budget.check()
             if time.monotonic() >= deadline:
                 raise TaskDeadlineExceeded()
             self._ensure_active(signed, token)
@@ -187,6 +195,11 @@ class TaskRunner:
                 signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
             )
             outcome = "succeeded"
+        except BudgetExceeded:
+            outcome = "budget"
+            if running:
+                self._try_fail(signed.task_id, token, status="FAILED", stage="BUDGET_EXCEEDED",
+                               error_code="BUDGET_EXCEEDED", error_message="任务调用或输出预算已用尽")
         except TaskCancelled:
             outcome = "cancelled"
         except TaskDeadlineExceeded:
@@ -220,6 +233,7 @@ class TaskRunner:
                 )
         finally:
             runtime_metrics.observe_task(outcome, time.monotonic() - started, empty_result)
+            active_budget.reset(budget_token)
             self.java.close()
 
     def _add_group_similarity(

@@ -243,3 +243,7 @@
 # Step 54：任务恢复
 
 - 轮次签名、回调锁、有限自动恢复与 checkpoint 续跑，详见 agent-service/STEP-54.md。
+
+# Step 55：任务预算
+
+- 工具/模型请求和输出预留预算，Python 71 项通过。详见 agent-service/STEP-55.md。

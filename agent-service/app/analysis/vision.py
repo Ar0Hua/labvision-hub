@@ -2,6 +2,7 @@ import httpx
 import re
 
 from app.config import Settings
+from app.runtime.budget import reserve
 from app.runtime.java_client import VisionInput
 
 
@@ -48,6 +49,7 @@ class VisionAnalyzer:
             timeout=self._settings.model_timeout_seconds,
         )
         try:
+            reserve(model=True, output_tokens=800)
             response = client.post(
                 "/chat/completions",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},

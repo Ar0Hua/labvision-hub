@@ -28,12 +28,19 @@ class Settings:
     caption_model: str = "qwen-vl-plus"
     feature_version: str = "image-v1+text-v1+caption-v1"
 
+    max_tool_calls: int = 100
+    max_model_calls: int = 10
+    max_output_tokens: int = 8000
+
     @classmethod
     def from_env(cls) -> "Settings":
         secret = os.getenv("AGENT_INTERNAL_SECRET") or os.getenv("AGENT_SERVICE_SECRET", "")
         if len(secret) < 32:
             raise RuntimeError("AGENT_INTERNAL_SECRET must contain at least 32 characters")
         return cls(
+            max_tool_calls=max(1, min(500, int(os.getenv("AGENT_MAX_TOOL_CALLS", "100")))),
+            max_model_calls=max(1, min(30, int(os.getenv("AGENT_MAX_MODEL_CALLS", "10")))),
+            max_output_tokens=max(256, min(30000, int(os.getenv("AGENT_MAX_OUTPUT_TOKENS", "8000")))),
             java_base_url=os.getenv("JAVA_BASE_URL", "http://127.0.0.1:8123/api").rstrip("/"),
             service_secret=secret,
             java_timeout_seconds=float(os.getenv("JAVA_REQUEST_TIMEOUT_SECONDS", "10")),
