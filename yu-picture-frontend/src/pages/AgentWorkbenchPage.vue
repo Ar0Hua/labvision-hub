@@ -32,7 +32,7 @@
               <div class="stage-line"><span class="stage-dot" />{{ stageText(turn.task.stage) }}
                 <span v-if="turn.tools.length"> · 已使用 {{ turn.tools.join('、') }}</span>
               </div>
-              <pre v-if="turn.answer">{{ turn.answer }}</pre>
+              <AgentAnswer v-if="turn.answer" :text="turn.answer" />
               <a-alert v-else-if="turn.task.status === 'FAILED'" type="error"
                 :message="turn.task.errorMessage || '任务执行失败'" show-icon />
               <div v-else class="waiting">正在检索和核验证据…</div>
@@ -43,6 +43,10 @@
                   <small>ID {{ citation.pictureId }}{{ citation.category ? ` · ${citation.category}` : '' }}</small>
                 </router-link>
               </div>
+              <a-space v-if="turn.answer && turn.task.status === 'SUCCEEDED'" class="task-actions">
+                <a-button size="small" @click="exportReport(turn, 'md')">下载 Markdown</a-button>
+                <a-button size="small" @click="exportReport(turn, 'json')">下载 JSON</a-button>
+              </a-space>
               <div v-if="['FAILED', 'CANCELLED'].includes(turn.task.status)" class="task-actions">
                 <a-button size="small" @click="resumeTask(turn)">重新执行</a-button>
               </div>
@@ -74,6 +78,8 @@
 </template>
 
 <script setup lang="ts">
+import AgentAnswer from '@/components/AgentAnswer.vue'
+import request from '@/request'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { message as antMessage } from 'ant-design-vue'
@@ -103,6 +109,47 @@ const activeTurn = computed(() => [...turns.value].reverse().find((turn) => ['PE
 const activeTask = computed(() => activeTurn.value?.task)
 onMounted(loadConversations)
 onBeforeUnmount(() => disconnect?.())
+
+async function exportReport(turn: Turn, format: 'md' | 'json') {
+  try {
+    // Recheck current conversation ownership even for statistical reports without citations.
+    const tasks = await listAgentTasks(turn.task.conversationId)
+    if (tasks.data.code !== 0 || !tasks.data.data?.some(t => t.taskId === turn.task.taskId)) {
+      throw new Error('报告任务当前不可访问')
+    }
+    const ids = turn.citations.map(c => c.pictureId)
+    if (ids.length) {
+      const response = await request('/api/agent/conversations/' + turn.task.conversationId + '/pictures/details',
+        { method: 'POST', data: ids })
+      if (response.data.code !== 0) throw new Error('引用图片权限已变化，请重新生成报告')
+      const allowed = new Set((response.data.data || []).map((p: { pictureId: string }) => p.pictureId))
+      if (ids.some(id => !allowed.has(id))) throw new Error('部分图片当前不可访问')
+    }
+    const scrub = (value: string) => value.replace(/https?:\/\/[^\s<>]+/gi, '[外部地址已移除]')
+    const report = {
+      version: 'labvision-report-v1', taskId: turn.task.taskId,
+      conversationId: turn.task.conversationId, exportedAt: new Date().toISOString(),
+      taskCreatedAt: turn.task.createTime, scope: scopeLabel.value,
+      query: scrub(turn.query), answer: scrub(turn.answer),
+      citations: turn.citations.map(c => ({ pictureId: c.pictureId, name: scrub(c.name || ''),
+        category: scrub(c.category || '') })),
+      limitations: '基于任务生成时的证据；下载时已重新检查图片权限。视觉观察和初始阈值不代表实验结论。',
+    }
+    const text = format === 'json' ? JSON.stringify(report, null, 2)
+      : '# LabVision Hub 分析报告\n\n'
+        + '任务：' + report.taskId + '\n\n范围：' + report.scope
+        + '\n\n导出时间：' + report.exportedAt + '\n\n问题：' + report.query
+        + '\n\n' + report.answer + '\n\n限制：' + report.limitations
+        + '\n\n引用：\n' + report.citations.map(c => '- ' + c.name + ' [图片 ID: ' + c.pictureId + ']').join('\n')
+    const url = URL.createObjectURL(new Blob([text], { type: format === 'json'
+      ? 'application/json;charset=utf-8' : 'text/markdown;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'labvision-' + turn.task.taskId + '.' + format
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (error) { showError(error, '导出失败') }
+}
 
 async function loadConversations() {
   loadingConversations.value = true

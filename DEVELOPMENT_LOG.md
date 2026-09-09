@@ -219,3 +219,7 @@
 # Step 48：20 张图片输入与分批视觉分析
 
 - 贯通输入上限，新增分批失败覆盖率验证；Python 64 项与 Java 边界测试通过。详见 agent-service/STEP-48.md。
+
+# Step 49：矩阵与报告
+
+- 增加安全表格展示、下载前鉴权和 Markdown/JSON 导出。详见 agent-service/STEP-49.md。
