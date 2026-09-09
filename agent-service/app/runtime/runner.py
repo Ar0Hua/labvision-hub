@@ -4,7 +4,7 @@ import time
 from typing import Protocol
 
 from app.config import Settings
-from app.runtime.java_client import JavaTaskClient, TaskContext
+from app.runtime.java_client import JavaTaskClient, PictureCandidate, TaskContext
 from app.retrieval.keyword_executor import (
     AuthorizePictures, CheckActive, ExecutionResult, KeywordSearchExecutor, SearchPictures,
 )
@@ -52,15 +52,18 @@ class TaskRunner:
     executor: TaskExecutor
     vision: VisionAnalyzer | None = None
     timeout_seconds: float = 120
+    semantic: SemanticRetriever | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
-        executor = KeywordSearchExecutor(IntentParser(settings), SemanticRetriever(settings))
+        semantic = SemanticRetriever(settings)
+        executor = KeywordSearchExecutor(IntentParser(settings), semantic)
         return cls(
             JavaTaskClient(settings),
             RedisCheckpointWorkflow(executor, settings),
             VisionAnalyzer(settings),
             settings.task_timeout_seconds,
+            semantic,
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:
@@ -131,6 +134,9 @@ class TaskRunner:
                 signed.task_id, token, "tool_result",
                 json.dumps(tool_result, separators=(",", ":")),
             )
+            if is_group_analysis:
+                result = self._add_group_similarity(
+                    result, selected, context, signed, token, check_active)
             for citation in result.citations:
                 self.java.append_event(
                     signed.task_id, token, "citation",
@@ -184,6 +190,56 @@ class TaskRunner:
         finally:
             runtime_metrics.observe_task(outcome, time.monotonic() - started, empty_result)
             self.java.close()
+
+    def _add_group_similarity(
+        self, result: ExecutionResult, pictures: list[PictureCandidate],
+        context: TaskContext, signed: ServiceContext, token: str,
+        check_active: CheckActive,
+    ) -> ExecutionResult:
+        if not self.semantic:
+            return result
+        picture_ids = [picture.pictureId for picture in pictures]
+        self.java.append_event(
+            signed.task_id, token, "tool_start",
+            json.dumps(
+                {"tool": "picture_group_similarity", "count": len(picture_ids)},
+                separators=(",", ":"),
+            ),
+        )
+        try:
+            scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
+            matrix = self.semantic.picture_similarity_matrix(picture_ids, scope_key)
+            check_active()
+            analysis = PictureGroupAnalyzer.analyze_similarity(pictures, matrix)
+        except (TaskCancelled, TaskDeadlineExceeded):
+            raise
+        except Exception:
+            self.java.append_event(
+                signed.task_id, token, "tool_result",
+                json.dumps(
+                    {"tool": "picture_group_similarity", "available": False},
+                    separators=(",", ":"),
+                ),
+            )
+            return result
+        self.java.append_event(
+            signed.task_id, token, "tool_result",
+            json.dumps(
+                {
+                    "tool": "picture_group_similarity",
+                    "available": True,
+                    "knownPairs": analysis.known_pair_count,
+                    "totalPairs": analysis.total_pair_count,
+                },
+                separators=(",", ":"),
+            ),
+        )
+        return ExecutionResult(
+            answer=result.answer + "\n\n" + analysis.answer,
+            citations=result.citations,
+            candidate_count=result.candidate_count,
+            intent_state=result.intent_state,
+        )
 
     def _add_visual_analysis(
         self, result: ExecutionResult, context: TaskContext, signed: ServiceContext, token: str,
