@@ -273,30 +273,41 @@ class TaskRunner:
     ) -> ExecutionResult:
         if not self.vision or not self.vision.enabled or not result.citations:
             return result
-        total_citations = len(result.citations)
-        picture_ids = [
-            item["pictureId"] for item in result.citations
-            if item.get("pictureId")
-        ][:min(8, self.vision.max_pictures)]
+        picture_ids = list(dict.fromkeys(
+            item["pictureId"] for item in result.citations if item.get("pictureId")))[:20]
         if not picture_ids:
             return result
+        batch_size = max(1, min(8, self.vision.max_pictures))
+        observations = []
+        covered = 0
         self.java.append_event(
             signed.task_id, token, "tool_start",
-            json.dumps({"tool": "vision_analysis", "count": len(picture_ids)}, separators=(",", ":")),
-        )
-        inputs = self.java.get_vision_inputs(signed.task_id, token, picture_ids)
-        check_active()
-        analysis = self.vision.analyze(context.query, inputs)
-        if not analysis:
-            return result
+            json.dumps({"tool": "vision_analysis", "count": len(picture_ids)}))
+        for offset in range(0, len(picture_ids), batch_size):
+            check_active()
+            batch = picture_ids[offset:offset + batch_size]
+            try:
+                inputs = self.java.get_vision_inputs(signed.task_id, token, batch)
+            except Exception:
+                check_active()
+                continue
+            check_active()
+            if any(item.pictureId not in batch for item in inputs):
+                raise ValueError("vision inputs exceed authorized batch")
+            analysis = self.vision.analyze(context.query, inputs)
+            check_active()
+            if analysis:
+                covered += len({item.pictureId for item in inputs})
+                observations.append(f"批次 {offset // batch_size + 1}：\n" + analysis)
         self.java.append_event(
             signed.task_id, token, "tool_result",
-            json.dumps({"tool": "vision_analysis", "count": len(inputs)}, separators=(",", ":")),
-        )
+            json.dumps({"tool": "vision_analysis", "count": covered,
+                        "totalCount": len(picture_ids), "available": bool(observations)}))
+        if not observations:
+            return result
         return ExecutionResult(
-            answer=(
-                result.answer + f"\n\n视觉模型观察（覆盖 {len(inputs)}/{total_citations} 张，"
-                "不代表实验事实）：\n" + analysis),
+            answer=(result.answer + f"\n\n视觉模型观察（覆盖 {covered}/{len(picture_ids)} 张，"
+                    "不代表实验事实）：\n" + "\n\n".join(observations)),
             citations=result.citations,
             candidate_count=result.candidate_count,
             intent_state=result.intent_state,

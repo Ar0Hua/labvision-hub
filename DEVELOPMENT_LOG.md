@@ -215,3 +215,7 @@
 # Step 47：直接分析选中单图
 
 - 完成独立单图分析路由，Python 63 项测试通过。详见 agent-service/STEP-47.md。
+
+# Step 48：20 张图片输入与分批视觉分析
+
+- 贯通输入上限，新增分批失败覆盖率验证；Python 64 项与 Java 边界测试通过。详见 agent-service/STEP-48.md。

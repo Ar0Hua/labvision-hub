@@ -93,7 +93,7 @@ class PictureGroupAnalyzerTests(unittest.TestCase):
 
             def get_vision_inputs(self, _task_id, _token, ids):
                 self.vision_ids = ids
-                picture = pictures()[0]
+                picture = next(item for item in pictures() if item.pictureId == ids[0])
                 return [VisionInput(
                     **picture.model_dump(),
                     temporaryUrl="https://signed.example/11?token=short",
@@ -149,10 +149,10 @@ class PictureGroupAnalyzerTests(unittest.TestCase):
         self.assertEqual([state["status"] for state in java.states],
                          ["RUNNING", "SUCCEEDED"])
 
-        self.assertEqual(java.vision_ids, ["11"])
+        self.assertEqual(java.vision_ids, ["22"])
         answers = [payload["text"] for event, payload in java.events
                    if event == "answer_delta"]
-        self.assertIn("视觉模型观察（覆盖 1/2 张", answers[0])
+        self.assertIn("视觉模型观察（覆盖 2/2 张", answers[0])
         self.assertIn("第一张为横向画面", answers[0])
         self.assertIn("图像向量相似度证据（覆盖 1/1 对", answers[0])
         self.assertIn("向量中心代表项：细胞横图 [图片 ID: 11]", answers[0])

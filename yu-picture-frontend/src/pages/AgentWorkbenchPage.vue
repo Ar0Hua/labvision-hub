@@ -56,7 +56,7 @@
         <div class="example-picker">
           <span>平台样例图</span>
           <a-select v-model:value="selectedPictureIds" mode="tags" :max-tag-count="3"
-            :token-separators="[',', ' ']" placeholder="输入图片 ID，最多 5 张" />
+            :token-separators="[',', ' ']" placeholder="输入图片 ID，最多 20 张" />
           <small>样例图会先由后端复核当前账号权限，再用于站内相似检索。</small>
         </div>
         <a-textarea v-model:value="draft" :maxlength="8000" :auto-size="{ minRows: 2, maxRows: 5 }"
@@ -157,8 +157,8 @@ async function submit() {
   const maxLong = '9223372036854775807'
   const invalidId = ids.some((value) => !/^[1-9]\d{0,18}$/.test(value)
     || (value.length === maxLong.length && value > maxLong))
-  if (ids.length > 5 || invalidId) {
-    antMessage.error('请输入 1 至 5 个有效的平台图片 ID')
+  if (ids.length > 20 || invalidId) {
+    antMessage.error('请输入 1 至 20 个有效的平台图片 ID')
     return
   }
   const content = draft.value.trim() || (ids.length ? '查找与所选图片视觉相似的资产' : '')

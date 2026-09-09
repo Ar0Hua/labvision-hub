@@ -37,8 +37,8 @@ public class AgentTaskService {
                               List<Long> examplePictureIds, User user) {
         List<Long> examples = examplePictureIds == null ? Collections.emptyList()
                 : new ArrayList<>(new LinkedHashSet<>(examplePictureIds));
-        if (examples.size() > 5 || examples.stream().anyMatch(id -> id == null || id <= 0)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "样例图片必须为 1 至 5 个有效图片 ID");
+        if (examples.size() > 20 || examples.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "样例图片必须为 1 至 20 个有效图片 ID");
         }
         if (!examples.isEmpty()) {
             pictures.details(conversationId, examples, user);

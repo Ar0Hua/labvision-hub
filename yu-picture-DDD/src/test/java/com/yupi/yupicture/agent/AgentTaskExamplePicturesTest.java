@@ -52,7 +52,7 @@ class AgentTaskExamplePicturesTest {
         ReflectionTestUtils.setField(service, "messages", messages);
         User user = new User();
         assertThrows(BusinessException.class, () -> service.submit(
-                "conversation", "query", Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L), user));
+                "conversation", "query", java.util.stream.LongStream.rangeClosed(1, 21).boxed().collect(java.util.stream.Collectors.toList()), user));
         assertThrows(BusinessException.class, () -> service.submit(
                 "conversation", "query", Collections.singletonList(-1L), user));
         verifyNoInteractions(messages);
