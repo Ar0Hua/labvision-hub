@@ -1,9 +1,17 @@
-from urllib.parse import quote
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+import math
+from urllib.parse import quote
 
 import httpx
 
 from app.config import Settings
+
+
+@dataclass(frozen=True)
+class PictureSimilarityMatrix:
+    picture_ids: list[str]
+    scores: list[list[float | None]]
 
 
 class SemanticRetriever:
@@ -131,6 +139,83 @@ class SemanticRetriever:
         finally:
             if self._qdrant_client is None:
                 qdrant_client.close()
+
+    def picture_similarity_matrix(
+        self, picture_ids: list[str], scope_key: str,
+    ) -> PictureSimilarityMatrix:
+        """Read pairwise cosine similarities for an already-authorized picture group."""
+        self._validate_similarity_request(picture_ids, scope_key)
+        selected = list(picture_ids)
+        selected_set = set(selected)
+        pair_scores: dict[tuple[str, str], list[float]] = {}
+        qdrant_client = self._qdrant_client or httpx.Client(
+            base_url=self._settings.qdrant_url,
+            timeout=self._settings.qdrant_timeout_seconds,
+        )
+        try:
+            headers = ({"api-key": self._settings.qdrant_api_key}
+                       if self._settings.qdrant_api_key else {})
+            collection = quote(self._settings.qdrant_collection, safe="")
+            for picture_id in selected:
+                query_filter = self._filter(scope_key)
+                query_filter["must"].append(
+                    {"key": "pictureId", "match": {"any": selected}}
+                )
+                query_filter["must_not"] = [
+                    {"key": "pictureId", "match": {"value": picture_id}}
+                ]
+                response = qdrant_client.post(
+                    f"/collections/{collection}/points/query",
+                    headers=headers,
+                    json={
+                        "query": int(picture_id),
+                        "using": "image_dense",
+                        "filter": query_filter,
+                        "limit": len(selected) - 1,
+                        "with_payload": ["pictureId"],
+                        "with_vector": False,
+                    },
+                )
+                response.raise_for_status()
+                result = response.json().get("result", {})
+                points = result.get("points", []) if isinstance(result, dict) else []
+                for point in points:
+                    candidate = point.get("payload", {}).get("pictureId")
+                    if (not isinstance(candidate, str) or candidate not in selected_set
+                            or candidate == picture_id):
+                        continue
+                    score = point.get("score")
+                    if (isinstance(score, bool) or not isinstance(score, (int, float))
+                            or not math.isfinite(score) or score < -1 or score > 1):
+                        raise ValueError("invalid Qdrant image similarity score")
+                    pair = tuple(sorted((picture_id, candidate), key=int))
+                    pair_scores.setdefault(pair, []).append(float(score))
+            scores: list[list[float | None]] = []
+            for left in selected:
+                row: list[float | None] = []
+                for right in selected:
+                    if left == right:
+                        row.append(1.0)
+                        continue
+                    values = pair_scores.get(tuple(sorted((left, right), key=int)))
+                    row.append(sum(values) / len(values) if values else None)
+                scores.append(row)
+            return PictureSimilarityMatrix(selected, scores)
+        finally:
+            if self._qdrant_client is None:
+                qdrant_client.close()
+
+    @staticmethod
+    def _validate_similarity_request(picture_ids: list[str], scope_key: str) -> None:
+        if not 2 <= len(picture_ids) <= 20 or len(set(picture_ids)) != len(picture_ids):
+            raise ValueError("picture similarity requires 2 to 20 unique picture IDs")
+        if any(not value.isdigit() or not 1 <= int(value) <= 9223372036854775807
+               for value in picture_ids):
+            raise ValueError("invalid picture ID")
+        if scope_key != "public":
+            if (not scope_key.startswith("space:") or not scope_key[6:].isdigit()
+                    or int(scope_key[6:]) < 1):
+                raise ValueError("invalid scope key")
 
     @staticmethod
     def _filter(scope_key: str, filters: dict | None = None) -> dict:
