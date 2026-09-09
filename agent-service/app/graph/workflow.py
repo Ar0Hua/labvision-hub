@@ -57,9 +57,11 @@ class LangGraphWorkflow:
         check_active: CheckActive,
     ) -> ExecutionResult:
         graph = self._compile(context, search, authorize, check_active)
+        config = self._config(context)
+        saved = graph.get_state(config)
+        resume = bool(saved.next and saved.values.get("task_id") == context.taskId)
         output = graph.invoke(
-            {"task_id": context.taskId, "query": context.query},
-            self._config(context),
+            None if resume else {"task_id": context.taskId, "query": context.query}, config,
         )
         return ExecutionResult(
             answer=output["answer"],

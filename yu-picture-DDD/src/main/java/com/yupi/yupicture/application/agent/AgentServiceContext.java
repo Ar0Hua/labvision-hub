@@ -9,6 +9,7 @@ public class AgentServiceContext {
     private String conversationId;
     private String userId;
     private String spaceId;
+    private int attempt;
     private long issuedAt;
     private long expiresAt;
 }

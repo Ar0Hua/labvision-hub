@@ -51,6 +51,15 @@ class AgentInternalTaskServiceTest {
                 ()->f.service.appendEvent("Bearer token","task","citation","{}"));
     }
 
+    @Test void rejectsOldAttemptAfterRetry() {
+        Fixture f=fixture();
+        AgentTask task=f.tasks.selectById("task");
+        task.setRetryCount(1);
+        assertThrows(BusinessException.class,()->f.service.context("Bearer token","task"));
+        f.signed.setAttempt(1);
+        assertEquals("query",f.service.context("Bearer token","task").get("query"));
+    }
+
     private Fixture fixture() {
         Fixture f=new Fixture();
         f.service=new AgentInternalTaskService();

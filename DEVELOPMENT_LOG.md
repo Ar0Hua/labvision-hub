@@ -239,3 +239,7 @@
 # Step 53：空间治理指标
 
 - 增加有分母和覆盖率的质量、冗余、标签、分辨率及未维护统计。详见 agent-service/STEP-53.md。
+
+# Step 54：任务恢复
+
+- 轮次签名、回调锁、有限自动恢复与 checkpoint 续跑，详见 agent-service/STEP-54.md。

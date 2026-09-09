@@ -30,6 +30,7 @@ public class AgentInternalTaskService {
         AgentMessage message=task==null?null:messages.selectById(task.getInputMessageId());
         User user=task==null?null:users.getById(task.getUserId());
         if(task==null||conversation==null||message==null||user==null
+                ||signed.getAttempt() != (task.getRetryCount()==null?0:task.getRetryCount())
                 ||!Objects.equals(task.getUserId(),conversation.getUserId())
                 ||!Objects.equals(task.getUserId(),user.getId())
                 ||!task.getConversationId().equals(signed.getConversationId())
@@ -52,7 +53,9 @@ public class AgentInternalTaskService {
         return result;
     }
 
+    @Transactional(rollbackFor=Exception.class)
     public void appendEvent(String bearerToken,String taskId,String type,String payload) {
+        tasks.lockById(taskId);
         context(bearerToken,taskId);
         events.append(taskId,type,payload);
     }

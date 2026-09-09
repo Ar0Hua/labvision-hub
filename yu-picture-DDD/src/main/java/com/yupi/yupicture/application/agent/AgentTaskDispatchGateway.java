@@ -37,7 +37,8 @@ public class AgentTaskDispatchGateway {
                 || !Objects.equals(task.getUserId(), conversation.getUserId())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "Agent 任务上下文已失效");
         }
-        String token = tokens.issue(taskId, task.getConversationId(), task.getUserId(), conversation.getSpaceId());
+        String token = tokens.issue(taskId, task.getConversationId(), task.getUserId(), conversation.getSpaceId(),
+                task.getRetryCount() == null ? 0 : task.getRetryCount());
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         client.exchange(endpoint(taskId), HttpMethod.POST, new HttpEntity<Void>(headers), Void.class);

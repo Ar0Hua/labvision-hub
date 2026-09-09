@@ -34,7 +34,7 @@ class AgentTaskDispatchTest {
         AgentTask task = task("PENDING");
         when(tasks.selectById(ID)).thenReturn(task);
         when(conversations.selectById("conversation")).thenReturn(conversation());
-        when(tokens.issue(ID, "conversation", 7L, 9L)).thenReturn("signed-token");
+        when(tokens.issue(ID, "conversation", 7L, 9L, 0)).thenReturn("signed-token");
 
         gateway.dispatch(ID);
 

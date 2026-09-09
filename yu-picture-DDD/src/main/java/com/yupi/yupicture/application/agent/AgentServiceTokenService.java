@@ -20,9 +20,14 @@ public class AgentServiceTokenService {
     private Clock clock = Clock.systemUTC();
 
     public String issue(String taskId, String conversationId, Long userId, Long spaceId) {
+        return issue(taskId, conversationId, userId, spaceId, 0);
+    }
+
+    public String issue(String taskId, String conversationId, Long userId, Long spaceId, int attempt) {
         requireSecret();
         AgentServiceContext context = new AgentServiceContext();
         context.setTaskId(taskId);
+        context.setAttempt(attempt);
         context.setConversationId(conversationId);
         context.setUserId(userId.toString());
         context.setSpaceId(spaceId == null ? null : spaceId.toString());
