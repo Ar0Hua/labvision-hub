@@ -10,6 +10,7 @@ from app.retrieval.keyword_executor import (
 )
 from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
+from app.analysis.space_statistics import SpaceStatisticsComposer
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
 from app.analysis.vision import VisionAnalyzer
@@ -82,31 +83,45 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
+            is_space_statistics = SpaceStatisticsComposer.matches(context.query)
+            tool_name = "space_statistics" if is_space_statistics else "picture_keyword_search"
             self.java.append_event(
                 signed.task_id, token, "tool_start",
-                json.dumps({"tool": "picture_keyword_search"}, separators=(",", ":")),
+                json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            result = self.executor.execute(
-                context,
-                lambda text, category, tags, limit, filters: self.java.search_pictures(
-                    signed.task_id, token, search_text=text, category=category, tags=tags,
-                    limit=limit, filters=filters),
-                lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
-                check_active,
-            )
-            empty_result = result.candidate_count == 0
+            if is_space_statistics:
+                summary = self.java.get_space_statistics(signed.task_id, token)
+                result = ExecutionResult(
+                    SpaceStatisticsComposer.compose(summary), [], 0)
+                tool_result = {
+                    "tool": tool_name,
+                    "scopeType": summary.scope.type,
+                    "capturedAt": summary.capturedAt.isoformat(),
+                }
+            else:
+                result = self.executor.execute(
+                    context,
+                    lambda text, category, tags, limit, filters: self.java.search_pictures(
+                        signed.task_id, token, search_text=text, category=category, tags=tags,
+                        limit=limit, filters=filters),
+                    lambda ids: self.java.authorize_pictures(signed.task_id, token, ids),
+                    check_active,
+                )
+                empty_result = result.candidate_count == 0
+                tool_result = {"tool": tool_name, "count": result.candidate_count}
             check_active()
             self.java.append_event(
                 signed.task_id, token, "tool_result",
-                json.dumps({"tool": "picture_keyword_search", "count": result.candidate_count},
-                           separators=(",", ":")),
+                json.dumps(tool_result, separators=(",", ":")),
             )
             for citation in result.citations:
                 self.java.append_event(
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
-            result = self._add_visual_analysis(result, context, signed, token, check_active)
+            if not is_space_statistics:
+                result = self._add_visual_analysis(
+                    result, context, signed, token, check_active)
             check_active()
             self.java.append_event(
                 signed.task_id,

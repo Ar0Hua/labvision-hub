@@ -4,6 +4,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from urllib.parse import urlsplit
 
+from app.analysis.space_statistics import SpaceStatistics
 from app.config import Settings
 
 
@@ -63,6 +64,11 @@ class JavaTaskClient:
     def get_context(self, task_id: str, token: str) -> TaskContext:
         data = self._request("GET", f"/agent/internal/tasks/{task_id}/context", token)
         return TaskContext.model_validate(data)
+
+    def get_space_statistics(self, task_id: str, token: str) -> SpaceStatistics:
+        data = self._request(
+            "GET", f"/agent/internal/tasks/{task_id}/spaces/summary", token)
+        return SpaceStatistics.model_validate(data)
 
     def update_state(
         self,
