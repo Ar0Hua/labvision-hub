@@ -56,10 +56,25 @@ class TrendStat(BaseModel):
     count: int = Field(ge=0)
 
 
+class Governance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    totalCount: int = Field(default=0, ge=0)
+    untaggedCount: int = Field(default=0, ge=0)
+    staleCount: int = Field(default=0, ge=0)
+    unknownResolutionCount: int = Field(default=0, ge=0)
+    underOneMegapixelCount: int = Field(default=0, ge=0)
+    oneToFourMegapixelCount: int = Field(default=0, ge=0)
+    overFourMegapixelCount: int = Field(default=0, ge=0)
+    indexedCount: int = Field(default=0, ge=0)
+    qualityIssueCount: int = Field(default=0, ge=0)
+    duplicateExcessCount: int = Field(default=0, ge=0)
+
+
 class SpaceStatistics(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scope: SpaceScope
     capturedAt: datetime
+    governance: Governance | None = None
     usage: SpaceUsage
     categoryDistribution: list[CategoryStat] = Field(max_length=20)
     tagDistribution: list[TagStat] = Field(max_length=20)
@@ -77,6 +92,7 @@ class SpaceStatistics(BaseModel):
 
 class SpaceStatisticsComposer:
     TRIGGERS = (
+        "无标签", "未打标签", "重复率", "低质量率", "分辨率分布", "未维护",
         "空间统计", "空间容量", "容量使用", "使用率", "图片数量", "资产数量",
         "分类分布", "标签分布", "大小分布", "上传趋势", "上传数量",
         "多少图片", "多少张图", "多少资产", "用了多少容量", "占用多少容量",
@@ -103,6 +119,19 @@ class SpaceStatisticsComposer:
         if usage.maxSize is not None:
             ratio = f"，使用率 {usage.sizeUsageRatio:.2f}%" if usage.sizeUsageRatio is not None else ""
             lines.append(f"- 容量上限：{cls._size(usage.maxSize)}{ratio}")
+        if summary.governance:
+            g = summary.governance
+            lines.extend([
+                f"- 无标签：{g.untaggedCount}/{g.totalCount}；180 天未维护：{g.staleCount}/{g.totalCount}。",
+                f"- 分辨率：低于 100 万像素 {g.underOneMegapixelCount}；100～400 万 {g.oneToFourMegapixelCount}；"
+                f"至少 400 万 {g.overFourMegapixelCount}；未知 {g.unknownResolutionCount}。",
+                f"- 当前版本索引覆盖：{g.indexedCount}/{g.totalCount}。",
+            ])
+            if g.indexedCount:
+                lines.append(f"- 已索引图片质量问题候选：{g.qualityIssueCount}/{g.indexedCount}；"
+                             f"相同索引图像冗余项：{g.duplicateExcessCount}/{g.indexedCount}。")
+            lines.append("- 质量阈值为亮度低于 50/高于 210 或模糊度低于 45；"
+                         "哈希基于索引图像，不能等同于原始文件重复率。")
         if summary.categoryDistribution:
             values = "、".join(
                 f"{item.category or '未分类'} {item.count} 张"

@@ -29,6 +29,8 @@ class AgentInternalSpaceAnalyzeServiceTest {
         ReflectionTestUtils.setField(service, "internalTasks", internal);
         ReflectionTestUtils.setField(service, "users", users);
         ReflectionTestUtils.setField(service, "analyze", analyze);
+        ReflectionTestUtils.setField(service, "governance",
+                mock(com.yupi.yupicture.infrastructure.mapper.AgentGovernanceMapper.class));
         ReflectionTestUtils.setField(service, "clock",
                 Clock.fixed(Instant.parse("2026-09-09T00:00:00Z"), ZoneOffset.UTC));
 
@@ -91,6 +93,8 @@ class AgentInternalSpaceAnalyzeServiceTest {
         ReflectionTestUtils.setField(service, "internalTasks", internal);
         ReflectionTestUtils.setField(service, "users", users);
         ReflectionTestUtils.setField(service, "analyze", analyze);
+        ReflectionTestUtils.setField(service, "governance",
+                mock(com.yupi.yupicture.infrastructure.mapper.AgentGovernanceMapper.class));
         Map<String, Object> context = new HashMap<>();
         context.put("userId", "7");
         context.put("spaceId", "9");

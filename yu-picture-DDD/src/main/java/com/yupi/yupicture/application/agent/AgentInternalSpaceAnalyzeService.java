@@ -25,6 +25,7 @@ public class AgentInternalSpaceAnalyzeService {
     @Resource private AgentInternalTaskService internalTasks;
     @Resource private UserRepository users;
     @Resource private SpaceAnalyzeApplicationService analyze;
+    @Resource private com.yupi.yupicture.infrastructure.mapper.AgentGovernanceMapper governance;
     private Clock clock = Clock.systemUTC();
 
     public Map<String, Object> summary(String bearerToken, String taskId) {
@@ -65,6 +66,14 @@ public class AgentInternalSpaceAnalyzeService {
         result.put("monthlyUploadTrend", trend);
         result.put("distributionLimit", DISTRIBUTION_LIMIT);
         result.put("trendLimit", TREND_LIMIT);
+        Long spaceId = rawSpaceId == null ? null : Long.valueOf(rawSpaceId.toString());
+        Map<String,Object> metrics = new LinkedHashMap<>();
+        Map<String,Object> metadata = governance.metadata(spaceId,
+                Date.from(Instant.now(clock).minus(java.time.Duration.ofDays(180))));
+        Map<String,Object> features = governance.features(spaceId);
+        if (metadata != null) metrics.putAll(metadata);
+        if (features != null) metrics.putAll(features);
+        result.put("governance", metrics);
         return result;
     }
 
