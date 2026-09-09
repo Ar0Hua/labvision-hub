@@ -12,6 +12,7 @@ from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
 from app.analysis.space_statistics import SpaceStatisticsComposer
 from app.analysis.group_analysis import PictureGroupAnalyzer
+from app.analysis.quality import summarize_features
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
 from app.analysis.vision import VisionAnalyzer
@@ -155,6 +156,10 @@ class TaskRunner:
                 )
                 empty_result = result.candidate_count == 0
                 tool_result = {"tool": tool_name, "count": result.candidate_count}
+            if is_single_analysis or is_group_analysis:
+                result = ExecutionResult(
+                    result.answer + "\n\n" + summarize_features(selected),
+                    result.citations, result.candidate_count, result.intent_state)
             check_active()
             self.java.append_event(
                 signed.task_id, token, "tool_result",

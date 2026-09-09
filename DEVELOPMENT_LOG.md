@@ -223,3 +223,7 @@
 # Step 49：矩阵与报告
 
 - 增加安全表格展示、下载前鉴权和 Markdown/JSON 导出。详见 agent-service/STEP-49.md。
+
+# Step 50：质量与查重证据
+
+- 接通鉴权后当前版本特征查询与质量/哈希证据回答，测试通过。详见 agent-service/STEP-50.md。

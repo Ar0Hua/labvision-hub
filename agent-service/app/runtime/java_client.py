@@ -20,6 +20,19 @@ class TaskContext(BaseModel):
     status: str
 
 
+class PictureFeatures(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contentHash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    phash: str | None = Field(default=None, pattern=r"^[0-9a-f]{16}$")
+    dhash: str | None = Field(default=None, pattern=r"^[0-9a-f]{16}$")
+    blurScore: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    brightnessScore: float | None = Field(default=None, ge=0, le=255, allow_inf_nan=False)
+    qualityFlags: str | None = None
+    caption: str | None = None
+    ocrText: str | None = None
+    indexedAt: str | None = None
+
+
 class PictureCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -34,6 +47,7 @@ class PictureCandidate(BaseModel):
     size: int | None = None
     format: str | None = None
     createdAt: str | int | None = None
+    features: PictureFeatures | None = None
 
 
 class VisionInput(PictureCandidate):
