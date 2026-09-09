@@ -298,6 +298,7 @@ class TaskRunner:
             return result
         batch_size = max(1, min(8, self.vision.max_pictures))
         observations = []
+        successful_ids = []
         covered = 0
         self.java.append_event(
             signed.task_id, token, "tool_start",
@@ -316,14 +317,20 @@ class TaskRunner:
             analysis = self.vision.analyze(context.query, inputs)
             check_active()
             if analysis:
+                successful_ids.extend(item.pictureId for item in inputs)
                 covered += len({item.pictureId for item in inputs})
-                observations.append(f"批次 {offset // batch_size + 1}：\n" + analysis)
+                observations.append(f"批次 {offset // batch_size + 1}：\n" + analysis[:1200])
         self.java.append_event(
             signed.task_id, token, "tool_result",
             json.dumps({"tool": "vision_analysis", "count": covered,
                         "totalCount": len(picture_ids), "available": bool(observations)}))
         if not observations:
             return result
+        reducer = getattr(self.vision, "summarize", None)
+        summary = reducer(context.query, observations, successful_ids) if callable(reducer) else None
+        check_active()
+        if summary:
+            observations.append("跨批汇总（基于各批摘要）：\n" + summary)
         return ExecutionResult(
             answer=(result.answer + f"\n\n视觉模型观察（覆盖 {covered}/{len(picture_ids)} 张，"
                     "不代表实验事实）：\n" + "\n\n".join(observations)),

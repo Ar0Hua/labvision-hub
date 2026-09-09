@@ -247,3 +247,7 @@
 # Step 55：任务预算
 
 - 工具/模型请求和输出预留预算，Python 71 项通过。详见 agent-service/STEP-55.md。
+
+# Step 56：视觉分批归纳
+
+- 接通有界 map/reduce 汇总和图片引用校验，详见 agent-service/STEP-56.md。
