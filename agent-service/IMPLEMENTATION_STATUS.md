@@ -14,6 +14,7 @@
 - DDD 后端提供绑定签名任务范围的确定性空间统计摘要内部接口。
 - Python Agent 可将容量、数量、分类/标签/大小分布和上传趋势问题路由为确定性统计回答。
 - 已选权限图片支持格式、分类、方向、尺寸、大小、共同标签和元数据代表项的确定性组对比。
+- 图片组可在短期签名缩略图和配置上限内追加千问视觉差异观察，并披露实际覆盖率。
 - transactional outbox、租约领取、确认/重试和可重放索引 Worker。
 - LangGraph 三阶段工作流、Redis checkpoint、有界结构化会话摘要和总任务超时。
 - Java 再鉴权后的短期 COS 缩略图 URL，以及 DashScope/Qwen 视觉观察。
@@ -33,7 +34,7 @@
 ## 验证结果
 
 - Java Agent：Step 40 全量 45 项测试通过。
-- Python Agent：Step 42 全量 52 项测试通过。
+- Python Agent：Step 43 全量 53 项测试通过。
 - 前端：Step 36 Vite 生产构建成功。
 - 未连接真实 DashScope、Qdrant、COS 或生产数据库，未执行任何迁移。
 

@@ -2,7 +2,7 @@ import json
 import unittest
 
 from app.analysis.group_analysis import PictureGroupAnalyzer
-from app.runtime.java_client import PictureCandidate, TaskContext
+from app.runtime.java_client import PictureCandidate, TaskContext, VisionInput
 from app.runtime.runner import TaskRunner
 from app.security.service_token import ServiceContext
 
@@ -50,6 +50,7 @@ class PictureGroupAnalyzerTests(unittest.TestCase):
             events = []
             states = []
             authorized_ids = None
+            vision_ids = None
 
             def get_context(self, _task_id, _token):
                 status = "PENDING" if not self.states else "RUNNING"
@@ -68,6 +69,16 @@ class PictureGroupAnalyzerTests(unittest.TestCase):
                 self.authorized_ids = ids
                 return pictures()[:2]
 
+            def get_vision_inputs(self, _task_id, _token, ids):
+                self.vision_ids = ids
+                picture = pictures()[0]
+                return [VisionInput(
+                    **picture.model_dump(),
+                    temporaryUrl="https://signed.example/11?token=short",
+                    expiresInSeconds=120,
+                )]
+
+
             def close(self):
                 pass
 
@@ -75,20 +86,35 @@ class PictureGroupAnalyzerTests(unittest.TestCase):
             def execute(self, *_args):
                 raise AssertionError("group comparison must not run picture retrieval")
 
+        class Vision:
+            enabled = True
+            max_pictures = 1
+
+            def analyze(self, _query, selected):
+                self.selected = selected
+                return "第一张为横向画面。"
+
         java = Java()
         signed = ServiceContext("task", "conversation", "7", "9", 1, 301)
-        TaskRunner(java, Executor()).run(signed, "token")
+        vision = Vision()
+        TaskRunner(java, Executor(), vision).run(signed, "token")
 
         self.assertEqual(java.authorized_ids, ["11", "22"])
         tools = [payload["tool"] for event, payload in java.events
                  if event in ("tool_start", "tool_result")]
-        self.assertEqual(tools, ["picture_group_analysis", "picture_group_analysis"])
+        self.assertEqual(tools, [
+            "picture_group_analysis", "picture_group_analysis", "vision_analysis", "vision_analysis"])
         citations = [payload["pictureId"] for event, payload in java.events
                      if event == "citation"]
         self.assertEqual(citations, ["11", "22"])
         self.assertEqual([state["status"] for state in java.states],
                          ["RUNNING", "SUCCEEDED"])
 
+        self.assertEqual(java.vision_ids, ["11"])
+        answers = [payload["text"] for event, payload in java.events
+                   if event == "answer_delta"]
+        self.assertIn("视觉模型观察（覆盖 1/2 张", answers[0])
+        self.assertIn("第一张为横向画面", answers[0])
 
 if __name__ == "__main__":
     unittest.main()

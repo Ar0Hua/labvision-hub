@@ -75,6 +75,7 @@ class MissingExecutor:
 
 class SuccessfulVision:
     enabled = True
+    max_pictures = 8
 
     def analyze(self, query, pictures):
         return f"已分析 {len(pictures)} 张图片，目标：{query}"

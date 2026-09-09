@@ -34,6 +34,20 @@ class VisionAnalyzerTests(unittest.TestCase):
         self.assertEqual(len([item for item in user_content if item["type"] == "image_url"]), 1)
         self.assertNotIn("https://signed.example/2", str(user_content))
 
+    def test_discards_observation_that_cites_an_unprovided_picture(self):
+        configured = settings()
+        object.__setattr__(configured, "dashscope_api_key", "test-key-not-a-real-secret")
+        object.__setattr__(configured, "vision_model", "qwen3-vl-plus")
+        client = httpx.Client(
+            base_url="https://dashscope.example/v1",
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, json={
+                "choices": [{"message": {"content": "发现异常。[pictureId=999]"}}]
+            })),
+        )
+        self.assertIsNone(
+            VisionAnalyzer(configured, client).analyze("分析", [self._input("1")]))
+
+
     def test_model_failure_degrades_to_no_visual_observation(self):
         configured = settings()
         object.__setattr__(configured, "dashscope_api_key", "test-key-not-a-real-secret")

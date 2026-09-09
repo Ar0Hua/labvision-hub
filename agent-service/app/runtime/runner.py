@@ -136,7 +136,7 @@ class TaskRunner:
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
-            if not is_space_statistics and not is_group_analysis:
+            if not is_space_statistics:
                 result = self._add_visual_analysis(
                     result, context, signed, token, check_active)
             check_active()
@@ -191,10 +191,11 @@ class TaskRunner:
     ) -> ExecutionResult:
         if not self.vision or not self.vision.enabled or not result.citations:
             return result
+        total_citations = len(result.citations)
         picture_ids = [
             item["pictureId"] for item in result.citations
             if item.get("pictureId")
-        ][:8]
+        ][:min(8, self.vision.max_pictures)]
         if not picture_ids:
             return result
         self.java.append_event(
@@ -211,7 +212,9 @@ class TaskRunner:
             json.dumps({"tool": "vision_analysis", "count": len(inputs)}, separators=(",", ":")),
         )
         return ExecutionResult(
-            answer=result.answer + "\n\n视觉模型观察（不代表实验事实）：\n" + analysis,
+            answer=(
+                result.answer + f"\n\n视觉模型观察（覆盖 {len(inputs)}/{total_citations} 张，"
+                "不代表实验事实）：\n" + analysis),
             citations=result.citations,
             candidate_count=result.candidate_count,
             intent_state=result.intent_state,

@@ -1,4 +1,5 @@
 import httpx
+import re
 
 from app.config import Settings
 from app.runtime.java_client import VisionInput
@@ -18,6 +19,10 @@ class VisionAnalyzer:
     @property
     def enabled(self) -> bool:
         return bool(self._settings.dashscope_api_key and self._settings.vision_model)
+
+    @property
+    def max_pictures(self) -> int:
+        return self._settings.max_vision_pictures
 
     def analyze(self, query: str, pictures: list[VisionInput]) -> str | None:
         selected = pictures[: self._settings.max_vision_pictures]
@@ -58,6 +63,11 @@ class VisionAnalyzer:
             response.raise_for_status()
             answer = response.json()["choices"][0]["message"]["content"]
             if not isinstance(answer, str) or not answer.strip():
+                return None
+            mentioned_ids = re.findall(
+                r"pictureId\s*[=:：]\s*(\d+)", answer, flags=re.IGNORECASE)
+            allowed_ids = {item.pictureId for item in selected}
+            if any(picture_id not in allowed_ids for picture_id in mentioned_ids):
                 return None
             return answer.strip()[:6000]
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
