@@ -11,6 +11,7 @@ from app.retrieval.keyword_executor import (
 from app.retrieval.intent import IntentParser
 from app.retrieval.semantic import SemanticRetriever
 from app.analysis.space_statistics import SpaceStatisticsComposer
+from app.analysis.group_analysis import PictureGroupAnalyzer
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
 from app.analysis.vision import VisionAnalyzer
@@ -83,13 +84,29 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
-            is_space_statistics = SpaceStatisticsComposer.matches(context.query)
-            tool_name = "space_statistics" if is_space_statistics else "picture_keyword_search"
+            is_group_analysis = PictureGroupAnalyzer.matches(
+                context.query, context.examplePictureIds)
+            is_space_statistics = (
+                not is_group_analysis and SpaceStatisticsComposer.matches(context.query))
+            tool_name = (
+                "picture_group_analysis" if is_group_analysis else
+                ("space_statistics" if is_space_statistics else "picture_keyword_search")
+            )
             self.java.append_event(
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            if is_space_statistics:
+            if is_group_analysis:
+                selected = self.java.authorize_pictures(
+                    signed.task_id, token, context.examplePictureIds)
+                group = PictureGroupAnalyzer.analyze(selected)
+                result = ExecutionResult(
+                    group.answer, group.citations, group.picture_count)
+                tool_result = {
+                    "tool": tool_name,
+                    "count": group.picture_count,
+                }
+            elif is_space_statistics:
                 summary = self.java.get_space_statistics(signed.task_id, token)
                 result = ExecutionResult(
                     SpaceStatisticsComposer.compose(summary), [], 0)
@@ -119,7 +136,7 @@ class TaskRunner:
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
-            if not is_space_statistics:
+            if not is_space_statistics and not is_group_analysis:
                 result = self._add_visual_analysis(
                     result, context, signed, token, check_active)
             check_active()
