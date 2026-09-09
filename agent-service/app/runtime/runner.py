@@ -89,9 +89,14 @@ class TaskRunner:
             running = True
             is_group_analysis = PictureGroupAnalyzer.matches(
                 context.query, context.examplePictureIds)
+            is_single_analysis = (
+                len(context.examplePictureIds) == 1
+                and any(word in context.query for word in ("分析", "解释", "描述", "质量", "文字"))
+                and not any(word in context.query for word in ("查找", "搜索", "找相似", "检索")))
             is_space_statistics = (
-                not is_group_analysis and SpaceStatisticsComposer.matches(context.query))
+                not is_single_analysis and not is_group_analysis and SpaceStatisticsComposer.matches(context.query))
             tool_name = (
+                "picture_analysis" if is_single_analysis else
                 "picture_group_analysis" if is_group_analysis else
                 ("space_statistics" if is_space_statistics else "picture_keyword_search")
             )
@@ -99,7 +104,28 @@ class TaskRunner:
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            if is_group_analysis:
+            if is_single_analysis:
+                selected = self.java.authorize_pictures(
+                    signed.task_id, token, context.examplePictureIds)
+                if len(selected) != 1 or selected[0].pictureId != context.examplePictureIds[0]:
+                    raise ValueError("selected picture is unavailable")
+                picture = selected[0]
+                facts = [
+                    f"选中图片：[图片 ID: {picture.pictureId}]",
+                    f"- 名称：{picture.name or '未命名'}",
+                    f"- 分类：{picture.category or '未分类'}",
+                    f"- 格式：{picture.format or '未知'}",
+                    f"- 分辨率：{picture.width or '未知'} × {picture.height or '未知'}",
+                    f"- 大小：{picture.size if picture.size is not None else '未知'} 字节",
+                    f"- 标签：{picture.tags or '无'}",
+                    "以上来自当前权限范围内的图片元数据。",
+                ]
+                result = ExecutionResult("\n".join(facts), [{
+                    "pictureId": picture.pictureId, "name": picture.name,
+                    "category": picture.category,
+                }], 1)
+                tool_result = {"tool": tool_name, "count": 1}
+            elif is_group_analysis:
                 selected = self.java.authorize_pictures(
                     signed.task_id, token, context.examplePictureIds)
                 group = PictureGroupAnalyzer.analyze(selected)
