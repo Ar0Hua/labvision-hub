@@ -27,10 +27,31 @@ public class AgentInternalSpaceAnalyzeService {
     @Resource private SpaceAnalyzeApplicationService analyze;
     @Resource private com.yupi.yupicture.infrastructure.mapper.AgentGovernanceMapper governance;
     @Resource private com.yupi.yupicture.infrastructure.mapper.AgentStatisticsWindowMapper windows;
+    @Resource private AgentAccessService access;
     private Clock clock = Clock.systemUTC();
 
     public Map<String, Object> summary(String bearerToken, String taskId) {
-        Map<String, Object> context = internalTasks.context(bearerToken, taskId);
+        return summarizeContext(internalTasks.context(bearerToken, taskId));
+    }
+
+    public List<Map<String,Object>> compare(String bearerToken, String taskId) {
+        Map<String,Object> context=internalTasks.context(bearerToken,taskId);
+        List<Long> ids=AgentExplicitScopes.comparison((String)context.get("query"));
+        if(ids.isEmpty()) throw new com.yupi.yupicture.infrastructure.exception.BusinessException(
+                ErrorCode.PARAMS_ERROR,"当前任务没有明确请求多空间比较");
+        User user=users.getById(Long.valueOf(context.get("userId").toString()));
+        access.resolve(user,ids);
+        List<Map<String,Object>> result=new ArrayList<>();
+        for(Long id:ids) {
+            Map<String,Object> scoped=new LinkedHashMap<>(context);
+            scoped.put("spaceId",id.toString());
+            result.add(summarizeContext(scoped));
+        }
+        access.resolve(user,ids);
+        return result;
+    }
+
+    private Map<String,Object> summarizeContext(Map<String,Object> context) {
         User user = users.getById(Long.valueOf(context.get("userId").toString()));
         ThrowUtils.throwIf(user == null || !Integer.valueOf(0).equals(user.getIsDelete()),
                 ErrorCode.NO_AUTH_ERROR, "Agent 统计用户不可用");

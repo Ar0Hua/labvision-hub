@@ -52,6 +52,7 @@ public class AgentConversationService {
         if (row == null || !Objects.equals(user.getId(), row.getUserId()) || !"ACTIVE".equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
         }
+        if (row.getSpaceId() != null) access.resolve(user, java.util.Collections.singletonList(row.getSpaceId()));
         return row;
     }
 

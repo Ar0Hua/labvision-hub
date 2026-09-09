@@ -59,6 +59,12 @@ public class AgentInternalController {
                 body == null ? null : body.getPictureIds()));
     }
 
+    @GetMapping("/{id}/spaces/compare")
+    public BaseResponse<List<Map<String,Object>>> compareSpaces(@PathVariable String id,
+            @RequestHeader("Authorization") String authorization) {
+        return ResultUtils.success(spaceAnalyze.compare(authorization,id));
+    }
+
     @GetMapping("/{id}/spaces/summary")
     public BaseResponse<Map<String,Object>> spaceSummary(@PathVariable String id,
             @RequestHeader("Authorization") String authorization) {

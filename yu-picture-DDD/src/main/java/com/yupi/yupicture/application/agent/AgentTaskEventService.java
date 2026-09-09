@@ -20,6 +20,8 @@ public class AgentTaskEventService {
     @Resource private AgentTaskEventMapper mapper;
     @Resource private AgentTaskMapper tasks;
     @Resource private AgentConversationService conversations;
+    @Resource private AgentMessageMapper messages;
+    @Resource private AgentAccessService access;
 
     /** 仅供受信任的应用服务调用；内部 HTTP 写入口将在服务认证步骤提供。 */
     public AgentTaskEvent append(String taskId, String type, String payloadJson) {
@@ -45,6 +47,11 @@ public class AgentTaskEventService {
         AgentTask task=tasks.selectById(taskId);
         if (task==null) throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "任务不可访问");
         conversations.requireOwner(task.getConversationId(),user);
+        AgentMessage input=messages.selectById(task.getInputMessageId());
+        if(input==null || !Objects.equals(input.getConversationId(),task.getConversationId()))
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"任务输入不可访问");
+        List<Long> compared=AgentExplicitScopes.comparison(input.getContent());
+        if(!compared.isEmpty()) access.resolve(user,compared);
         long after=afterEventId==null?0:afterEventId;
         int limit=requestedLimit==null?100:requestedLimit;
         if(after<0||limit<1||limit>200) throw new BusinessException(ErrorCode.PARAMS_ERROR,"事件游标或数量非法");

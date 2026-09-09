@@ -136,6 +136,8 @@ async function exportReport(turn: Turn, format: 'md' | 'json') {
     if (tasks.data.code !== 0 || !tasks.data.data?.some(t => t.taskId === turn.task.taskId)) {
       throw new Error('报告任务当前不可访问')
     }
+    const historyAccess = await listAgentTaskEvents(turn.task.taskId)
+    if (historyAccess.data.code !== 0) throw new Error('报告涉及的空间当前不可访问')
     const ids = turn.citations.map(c => c.pictureId)
     if (ids.length) {
       const response = await request('/api/agent/conversations/' + turn.task.conversationId + '/pictures/details',

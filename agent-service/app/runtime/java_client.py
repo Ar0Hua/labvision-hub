@@ -82,6 +82,12 @@ class JavaTaskClient:
         data = self._request("GET", f"/agent/internal/tasks/{task_id}/context", token)
         return TaskContext.model_validate(data)
 
+    def get_space_comparison(self, task_id: str, token: str) -> list[SpaceStatistics]:
+        data = self._request("GET", f"/agent/internal/tasks/{task_id}/spaces/compare", token)
+        if not isinstance(data, list) or not 2 <= len(data) <= 5:
+            raise JavaGatewayError("invalid space comparison")
+        return [SpaceStatistics.model_validate(item) for item in data]
+
     def get_space_statistics(self, task_id: str, token: str) -> SpaceStatistics:
         data = self._request(
             "GET", f"/agent/internal/tasks/{task_id}/spaces/summary", token)

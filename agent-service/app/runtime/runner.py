@@ -96,15 +96,17 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
-            is_group_analysis = PictureGroupAnalyzer.matches(
+            is_space_comparison = "比较空间" in context.query
+            is_group_analysis = not is_space_comparison and PictureGroupAnalyzer.matches(
                 context.query, context.examplePictureIds)
             is_single_analysis = (
                 len(context.examplePictureIds) == 1
                 and any(word in context.query for word in ("分析", "解释", "描述", "质量", "文字"))
                 and not any(word in context.query for word in ("查找", "搜索", "找相似", "检索")))
             is_space_statistics = (
-                not is_single_analysis and not is_group_analysis and SpaceStatisticsComposer.matches(context.query))
+                is_space_comparison or (not is_single_analysis and not is_group_analysis and SpaceStatisticsComposer.matches(context.query)))
             tool_name = (
+                "space_comparison" if is_space_comparison else
                 "picture_analysis" if is_single_analysis else
                 "picture_group_analysis" if is_group_analysis else
                 ("space_statistics" if is_space_statistics else "picture_keyword_search")
@@ -113,7 +115,16 @@ class TaskRunner:
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            if is_single_analysis:
+            if is_space_comparison:
+                summaries = self.java.get_space_comparison(signed.task_id, token)
+                lines = ["已对明确指定且当前有权限的空间完成比较：", "",
+                         "| 空间 ID | 图片数量 | 已用字节 |", "|---|---:|---:|"]
+                for summary in summaries:
+                    lines.append(f"| {summary.scope.spaceId} | {summary.usage.usedCount} | {summary.usage.usedSize} |")
+                lines.extend(["", *[SpaceStatisticsComposer.compose(item) for item in summaries]])
+                result = ExecutionResult("\n".join(lines), [], 0)
+                tool_result = {"tool": tool_name, "spaces": [s.scope.spaceId for s in summaries]}
+            elif is_single_analysis:
                 selected = self.java.authorize_pictures(
                     signed.task_id, token, context.examplePictureIds)
                 if len(selected) != 1 or selected[0].pictureId != context.examplePictureIds[0]:
@@ -166,7 +177,7 @@ class TaskRunner:
                 )
                 empty_result = result.candidate_count == 0
                 tool_result = {"tool": tool_name, "count": result.candidate_count}
-            if is_single_analysis or is_group_analysis:
+            if not is_space_comparison and (is_single_analysis or is_group_analysis):
                 result = ExecutionResult(
                     result.answer + "\n\n" + summarize_features(selected),
                     result.citations, result.candidate_count, result.intent_state)

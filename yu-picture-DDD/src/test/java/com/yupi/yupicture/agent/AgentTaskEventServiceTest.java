@@ -28,7 +28,7 @@ class AgentTaskEventServiceTest {
     @Test @SuppressWarnings("unchecked")
     void incrementalReadChecksOwnershipAndReturnsStringCursor() {
         Fixture f=fixture();
-        AgentTask task=new AgentTask(); task.setConversationId("conversation");
+        AgentTask task=new AgentTask(); task.setConversationId("conversation"); task.setInputMessageId("input");
         when(f.tasks.selectById(TASK_ID)).thenReturn(task);
         AgentTaskEvent event=new AgentTaskEvent(); event.setId(2059881449783808001L);
         event.setEventType("citation"); event.setPayloadJson("{}");
@@ -48,6 +48,21 @@ class AgentTaskEventServiceTest {
         verifyNoInteractions(f.events);
     }
 
+    @Test void revokedComparisonScopeBlocksEventReplay() {
+        Fixture f=fixture();
+        AgentTask task=new AgentTask(); task.setConversationId("conversation"); task.setInputMessageId("input");
+        when(f.tasks.selectById(TASK_ID)).thenReturn(task);
+        AgentMessageMapper messages=(AgentMessageMapper)ReflectionTestUtils.getField(f.service,"messages");
+        AgentMessage input=new AgentMessage(); input.setConversationId("conversation"); input.setContent("比较空间 9、10 的图片数量");
+        when(messages.selectById("input")).thenReturn(input);
+        AgentAccessService access=(AgentAccessService)ReflectionTestUtils.getField(f.service,"access");
+        User user=new User(); user.setId(1L);
+        when(access.resolve(user,Arrays.asList(9L,10L))).thenThrow(new BusinessException(
+                com.yupi.yupicture.infrastructure.exception.ErrorCode.NO_AUTH_ERROR,"权限已撤销"));
+        assertThrows(BusinessException.class,()->f.service.listAfter(TASK_ID,0L,50,user));
+        verifyNoInteractions(f.events);
+    }
+
     private Fixture fixture() {
         Fixture f=new Fixture();
         f.service=new AgentTaskEventService();
@@ -57,6 +72,11 @@ class AgentTaskEventServiceTest {
         ReflectionTestUtils.setField(f.service,"mapper",f.events);
         ReflectionTestUtils.setField(f.service,"tasks",f.tasks);
         ReflectionTestUtils.setField(f.service,"conversations",f.conversations);
+        AgentMessageMapper messages=mock(AgentMessageMapper.class);
+        AgentMessage input=new AgentMessage(); input.setConversationId("conversation"); input.setContent("query");
+        when(messages.selectById("input")).thenReturn(input);
+        ReflectionTestUtils.setField(f.service,"messages",messages);
+        ReflectionTestUtils.setField(f.service,"access",mock(AgentAccessService.class));
         return f;
     }
     private static class Fixture {

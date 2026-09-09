@@ -259,3 +259,9 @@
 # Step 58：时间窗口统计
 
 - 补充日期和上传人筛选的确定性统计，详见 agent-service/STEP-58.md。
+
+
+# Step 59：多空间对比与历史权限
+
+- 完成显式多空间统计对比、回放及导出权限复核；Python 75 项、Java Agent 和前端构建通过。
+- 更新完成状态及待办边界，详见 agent-service/STEP-59.md 和 agent-service/IMPLEMENTATION_STATUS.md。
