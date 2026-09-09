@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import json
 
 from app.retrieval.semantic import PictureSimilarityMatrix
+from app.analysis.vector_groups import summarize_vector_groups
 from app.runtime.java_client import PictureCandidate
 
 
@@ -83,6 +84,7 @@ class PictureGroupAnalyzer:
         picture_ids = list(unique)
         if matrix.picture_ids != picture_ids:
             raise ValueError("similarity matrix does not match authorized picture order")
+        grouping = summarize_vector_groups(matrix)
         count = len(picture_ids)
         if len(matrix.scores) != count or any(
             len(row) != count for row in matrix.scores
@@ -141,7 +143,7 @@ class PictureGroupAnalyzer:
         lines.append(
             "- 上述代表性仅表示当前图像向量集合中的中心程度，不代表视觉质量、"
             "实验价值或科研结论。")
-        return GroupSimilarityResult("\n".join(lines), len(pairs), total_pairs)
+        return GroupSimilarityResult("\n".join(lines) + "\n\n" + grouping, len(pairs), total_pairs)
 
     @staticmethod
     def _picture_label(picture: PictureCandidate) -> str:
