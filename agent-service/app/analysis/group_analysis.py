@@ -22,7 +22,7 @@ class GroupSimilarityResult:
 
 
 class PictureGroupAnalyzer:
-    TRIGGERS = ("对比", "比较", "共同点", "差异", "分组", "归类", "异常项", "代表图")
+    TRIGGERS = ("聚类", "离群", "查重", "质量", "对比", "比较", "共同点", "差异", "分组", "归类", "异常项", "代表图")
 
     @classmethod
     def matches(cls, query: str, picture_ids: list[str]) -> bool:
@@ -74,6 +74,7 @@ class PictureGroupAnalyzer:
             "name": picture.name,
             "category": picture.category,
         } for picture in values]
+        lines.extend(cls._metadata_groups(values))
         return GroupAnalysisResult("\n".join(lines), citations, len(values))
 
     @classmethod
@@ -201,3 +202,35 @@ class PictureGroupAnalyzer:
                 break
             amount /= 1024
         return f"{amount:.2f} {unit}"
+
+    @classmethod
+    def _metadata_groups(cls, pictures: list[PictureCandidate]) -> list[str]:
+        from collections import defaultdict
+        from datetime import datetime, timezone, timedelta
+        lines = ["", "元数据分组（每个维度最多显示 10 组）："]
+        dimensions = {
+            "分类": lambda p: [p.category or "未分类"],
+            "上传人 ID": lambda p: [p.uploaderId or "未知"],
+            "标签": lambda p: sorted(cls._tags(p)) or ["无标签"],
+        }
+        def date_label(picture):
+            value = picture.createdAt
+            if value is None:
+                return ["未知"]
+            try:
+                parsed = (datetime.fromtimestamp(value / 1000, timezone.utc)
+                          if isinstance(value, int) else datetime.fromisoformat(value.replace("Z", "+00:00")))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone(timedelta(hours=8)))
+                return [parsed.astimezone(timezone(timedelta(hours=8))).date().isoformat()]
+            except (ValueError, OverflowError, OSError):
+                return ["未知"]
+        dimensions["上传日期（UTC+8）"] = date_label
+        for label, extract in dimensions.items():
+            groups = defaultdict(list)
+            for picture in pictures:
+                for value in extract(picture):
+                    groups[value].append(picture.pictureId)
+            for name, ids in sorted(groups.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+                lines.append(f"- {label} / {name[:80]}：" + "、".join(f"[图片 ID: {i}]" for i in ids))
+        return lines

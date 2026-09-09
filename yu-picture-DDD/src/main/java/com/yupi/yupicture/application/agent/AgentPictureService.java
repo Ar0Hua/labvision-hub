@@ -47,6 +47,9 @@ public class AgentPictureService {
             item.put("height", picture.getPicHeight());
             item.put("size", picture.getPicSize());
             item.put("format", picture.getPicFormat());
+            item.put("createdAt", picture.getCreateTime() == null ? null : picture.getCreateTime().toInstant().toString());
+            item.put("uploaderId", picture.getUserId() == null ? null : picture.getUserId().toString());
+            item.put("color", picture.getPicColor());
             result.add(item);
         }
         return result;

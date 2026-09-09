@@ -251,3 +251,7 @@
 # Step 56：视觉分批归纳
 
 - 接通有界 map/reduce 汇总和图片引用校验，详见 agent-service/STEP-56.md。
+
+# Step 57：元数据分组
+
+- 补充元数据和按属性的真实引用分组，详见 agent-service/STEP-57.md。

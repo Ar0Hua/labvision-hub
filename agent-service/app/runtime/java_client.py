@@ -47,6 +47,8 @@ class PictureCandidate(BaseModel):
     height: int | None = None
     size: int | None = None
     format: str | None = None
+    uploaderId: str | None = None
+    color: str | None = None
     createdAt: str | int | None = None
     features: PictureFeatures | None = None
 

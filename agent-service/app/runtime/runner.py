@@ -127,6 +127,8 @@ class TaskRunner:
                     f"- 分辨率：{picture.width or '未知'} × {picture.height or '未知'}",
                     f"- 大小：{picture.size if picture.size is not None else '未知'} 字节",
                     f"- 标签：{picture.tags or '无'}",
+                    f"- 上传人 ID：{picture.uploaderId or '未知'}；上传时间：{picture.createdAt or '未知'}",
+                    f"- 空间：{picture.spaceId or '公共图库'}；主色：{picture.color or '未知'}",
                     "以上来自当前权限范围内的图片元数据。",
                 ]
                 result = ExecutionResult("\n".join(facts), [{
