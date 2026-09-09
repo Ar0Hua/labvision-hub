@@ -231,3 +231,7 @@
 # Step 51：反馈持久化
 
 - 提供反馈迁移、接口、权限测试和前端入口，详见 agent-service/STEP-51.md。
+
+# Step 52：检索结果鉴权与折叠
+
+- 最终鉴权、相同索引图像折叠及匹配解释，Python 67 项通过。详见 agent-service/STEP-52.md。

@@ -102,6 +102,22 @@ class KeywordSearchExecutor:
             metadata[item.picture_id] for item in ranking
             if item.picture_id in metadata and item.picture_id not in excluded
         ]
+        # Recheck the final fused set and attach only current Java-provided features.
+        checked = authorize([picture.pictureId for picture in candidates]) if candidates else []
+        authorized = {picture.pictureId: picture for picture in checked}
+        candidates = [authorized[p.pictureId] for p in candidates if p.pictureId in authorized]
+        seen_hashes = set()
+        visible = []
+        collapsed = 0
+        for picture in candidates:
+            digest = picture.features.contentHash if picture.features else None
+            if digest and digest in seen_hashes:
+                collapsed += 1
+                continue
+            if digest:
+                seen_hashes.add(digest)
+            visible.append(picture)
+        candidates = visible
         citations = [
             {
                 "pictureId": picture.pictureId,
@@ -126,10 +142,15 @@ class KeywordSearchExecutor:
             tags = self._tags(picture.tags)
             if tags:
                 details.append("标签：" + "、".join(tags[:3]))
+            matched = [name for name, ids in channels.items() if picture.pictureId in ids]
+            labels = {"keyword": "关键词/元数据匹配", "vector": "文本语义匹配", "image": "图像向量匹配"}
+            details.append("匹配依据：" + "、".join(labels[name] for name in matched))
             suffix = "；".join(details)
             if suffix:
                 suffix = "（" + suffix + "）"
             lines.append(f"{index}. {name}{suffix} [图片 ID: {picture.pictureId}]")
+        if collapsed:
+            lines.append(f"已折叠 {collapsed} 项索引图像字节相同的结果；不等同于原始文件相同。")
         if len(candidates) > 5:
             lines.append(f"另有 {len(candidates) - 5} 项结果，可继续缩小关键词范围。")
         return ExecutionResult("\n".join(lines), citations, len(candidates),

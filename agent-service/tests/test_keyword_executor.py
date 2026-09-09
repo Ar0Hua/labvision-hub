@@ -24,7 +24,7 @@ class KeywordExecutorTests(unittest.TestCase):
             )]
 
         result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
-            self.context, search, lambda ids: [], lambda: None
+            self.context, search, lambda ids: [p for p in search("", None, [], 10, {}) if p.pictureId in ids], lambda: None
         )
         self.assertEqual(calls[0][:4], ("显微 成像", None, [], 10))
         self.assertEqual(calls[0][4]["formats"], [])
@@ -60,11 +60,21 @@ class KeywordExecutorTests(unittest.TestCase):
         result = KeywordSearchExecutor(IntentParser(self._settings()), semantic).execute(
             self.context,
             lambda *_: keyword,
-            lambda ids: authorized if ids == ["2", "3"] else [],
+            lambda ids: [p for p in {p.pictureId: p for p in keyword + authorized}.values() if p.pictureId in ids],
             lambda: None,
         )
         self.assertEqual(result.citations[0]["pictureId"], "2")
         self.assertEqual(semantic.call[1], "space:9")
+
+    def test_final_permission_removal_and_exact_hash_folding(self):
+        from app.runtime.java_client import PictureFeatures
+        values = [PictureCandidate(pictureId=str(i), spaceId="9",
+            features=PictureFeatures(contentHash="a"*64)) for i in (1, 2, 3)]
+        result = KeywordSearchExecutor(IntentParser(self._settings())).execute(
+            self.context, lambda *_: values, lambda ids: values[:2], lambda: None)
+        self.assertEqual([c["pictureId"] for c in result.citations], ["1"])
+        self.assertIn("已折叠 1 项", result.answer)
+        self.assertIn("匹配依据", result.answer)
 
     def _settings(self):
         return Settings("http://java", "x" * 32, 10, "", "https://dashscope.example/v1",
