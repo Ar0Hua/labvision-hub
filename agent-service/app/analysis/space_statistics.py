@@ -91,6 +91,9 @@ class StatisticsWindow(BaseModel):
     categories: list[CategoryStat] = Field(max_length=20)
     uploaders: list[UploaderStat] = Field(max_length=20)
     trend: list[TrendStat] = Field(max_length=24)
+    tagDistribution: list[TagStat] = Field(default_factory=list, max_length=20)
+    sizeDistribution: list[SizeStat] = Field(default_factory=list, max_length=20)
+    governance: Governance | None = None
 
 
 class SpaceStatistics(BaseModel):
@@ -183,8 +186,20 @@ class SpaceStatisticsComposer:
                 "- 窗口分类：" + "、".join(f"{c.category or '未分类'} {c.count}" for c in w.categories),
                 "- 窗口上传人：" + "、".join(f"{u.uploaderId or '未知'} {u.count}" for u in w.uploaders),
                 "- 窗口月度趋势：" + "、".join(f"{t.period} {t.count}" for t in w.trend),
-                "", "以下是当前全空间快照，不受上述窗口筛选限制：",
             ]
+            if w.tagDistribution:
+                filtered.append("- 窗口标签（最多20项，按包含该标签的图片计数）：" + "、".join(f"{t.tag} {t.count}" for t in w.tagDistribution))
+            if w.sizeDistribution:
+                filtered.append("- 窗口文件大小：" + "、".join(f"{t.sizeRange} {t.count}" for t in w.sizeDistribution))
+            if w.governance:
+                g = w.governance
+                filtered.extend([
+                    f"- 窗口无标签：{g.untaggedCount}/{g.totalCount}；180天未维护：{g.staleCount}/{g.totalCount}。",
+                    f"- 窗口分辨率：<100万 {g.underOneMegapixelCount}；100～400万 {g.oneToFourMegapixelCount}；>=400万 {g.overFourMegapixelCount}；未知 {g.unknownResolutionCount}。",
+                    f"- 窗口当前索引覆盖：{g.indexedCount}/{g.totalCount}；质量问题候选 {g.qualityIssueCount}/{g.indexedCount}；相同索引图像冗余 {g.duplicateExcessCount}/{g.indexedCount}。",
+                    "- 分母为0时比例不可计算；未索引图片不推测质量或重复。阈值同下方说明。",
+                ])
+            filtered.extend(["", "以下是当前全空间快照，不受上述窗口筛选限制："])
             lines = filtered + lines
         lines.append("以上数值来自当前权限范围内的数据库统计，不是模型估算。")
         return "\n".join(lines)

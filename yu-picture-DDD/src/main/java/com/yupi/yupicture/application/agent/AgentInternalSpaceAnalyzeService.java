@@ -105,6 +105,10 @@ public class AgentInternalSpaceAnalyzeService {
             window.put("totals",windows.totals(spaceId,filter.start,filter.end,filter.uploaderId));
             window.put("categories",windows.categories(spaceId,filter.start,filter.end,filter.uploaderId));
             window.put("uploaders",windows.uploaders(spaceId,filter.start,filter.end,filter.uploaderId));
+            window.put("tagDistribution",windows.tags(spaceId,filter.start,filter.end,filter.uploaderId));
+            window.put("sizeDistribution",windows.sizes(spaceId,filter.start,filter.end,filter.uploaderId));
+            window.put("governance",windows.governance(spaceId,filter.start,filter.end,filter.uploaderId,
+                    Date.from(Instant.now(clock).minus(java.time.Duration.ofDays(180)))));
             List<Map<String,Object>> trendRows=windows.trend(spaceId,filter.start,filter.end,filter.uploaderId);
             Collections.reverse(trendRows);
             window.put("trend",trendRows);
