@@ -249,8 +249,12 @@ class TaskRunner:
             if is_temporary_analysis:
                 phase = "TEMPORARY_VISUAL_ANALYSIS"
                 check_active()
-                observation = self.vision.analyze_temporary(context.query, context.temporaryImage) if self.vision else None
-                publish(result.answer + "\n\n" + (observation or "视觉模型未启用或分析失败；未生成视觉结论。"))
+                if self.vision and self.vision.enabled:
+                    publish(result.answer + "\n\n视觉观察（不代表实验事实）：\n")
+                    self.vision.analyze_stream(context.query, [context.temporaryImage],
+                        lambda delta: publish(published_answer + delta), check_active)
+                else:
+                    publish(result.answer + "\n\n视觉模型未启用；未生成视觉结论。")
             if is_group_analysis:
                 phase = "GROUP_SIMILARITY"
                 result = self._add_group_similarity(
@@ -259,7 +263,7 @@ class TaskRunner:
             if not is_space_statistics and not is_temporary_analysis:
                 phase = "VISUAL_ANALYSIS"
                 result = self._add_visual_analysis(
-                    result, context, signed, token, check_active)
+                    result, context, signed, token, check_active, publish)
                 publish(result.answer)
             check_active()
             publish_usage()
@@ -363,7 +367,7 @@ class TaskRunner:
 
     def _add_visual_analysis(
         self, result: ExecutionResult, context: TaskContext, signed: ServiceContext, token: str,
-        check_active: CheckActive,
+        check_active: CheckActive, publish=None,
     ) -> ExecutionResult:
         if not self.vision or not self.vision.enabled or not result.citations:
             return result
@@ -371,6 +375,8 @@ class TaskRunner:
             item["pictureId"] for item in result.citations if item.get("pictureId")))[:20]
         if not picture_ids:
             return result
+        if publish and isinstance(self.vision, VisionAnalyzer):
+            return self._stream_visual_batches(result, context, signed, token, check_active, publish, picture_ids)
         batch_size = max(1, min(8, self.vision.max_pictures))
         observations = []
         successful_ids = []
@@ -413,6 +419,34 @@ class TaskRunner:
             candidate_count=result.candidate_count,
             intent_state=result.intent_state,
         )
+
+    def _stream_visual_batches(self, result, context, signed, token, check_active, publish, picture_ids):
+        answer = result.answer + "\n\n视觉模型观察（不代表实验事实）：\n"
+        publish(answer)
+        observations, successful_ids = [], []
+        def emit(delta):
+            nonlocal answer
+            answer += delta
+            publish(answer)
+        size = max(1, min(8, self.vision.max_pictures))
+        for offset in range(0, len(picture_ids), size):
+            check_active()
+            batch = picture_ids[offset:offset+size]
+            inputs = self.java.get_vision_inputs(signed.task_id, token, batch)
+            if not inputs or any(p.pictureId not in batch for p in inputs):
+                raise ValueError("visual batch unavailable")
+            emit(f"\n批次 {offset//size+1}：\n")
+            observation = self.vision.analyze_stream(context.query, inputs, emit, check_active)
+            if observation:
+                observations.append(observation)
+                successful_ids.extend(p.pictureId for p in inputs)
+        check_active()
+        summary = self.vision.summarize(context.query, observations, successful_ids)
+        check_active()
+        if summary:
+            emit("\n\n跨批汇总（基于各批摘要）：\n"+summary)
+        emit(f"\n\n视觉分析覆盖 {len(set(successful_ids))}/{len(picture_ids)} 张。")
+        return ExecutionResult(answer, result.citations, result.candidate_count, result.intent_state)
 
     def _ensure_active(self, signed: ServiceContext, token: str) -> None:
         context = self.java.get_context(signed.task_id, token)
