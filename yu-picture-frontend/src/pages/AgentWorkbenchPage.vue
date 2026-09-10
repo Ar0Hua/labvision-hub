@@ -33,9 +33,9 @@
                 <span v-if="turn.tools.length"> · 已使用 {{ turn.tools.join('、') }}</span>
               </div>
               <AgentAnswer v-if="turn.answer" :text="turn.answer" />
-              <a-alert v-else-if="turn.task.status === 'FAILED'" type="error"
+              <a-alert v-if="turn.task.status === 'FAILED'" type="error"
                 :message="turn.task.errorMessage || '任务执行失败'" show-icon />
-              <div v-else class="waiting">正在检索和核验证据…</div>
+              <div v-else-if="!turn.answer" class="waiting">正在检索和核验证据…</div>
               <div v-if="turn.citations.length" class="citations">
                 <div v-for="citation in turn.citations" :key="citation.pictureId" class="citation-card">
                 <router-link :to="`/picture/${citation.pictureId}`" class="citation-card">
