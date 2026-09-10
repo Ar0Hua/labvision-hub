@@ -79,12 +79,28 @@ class TaskRunner:
         started = time.monotonic()
         outcome = "ignored"
         empty_result = False
+        published_answer = ""
+        phase = "INITIALIZING"
         deadline = started + self.timeout_seconds
         def check_active() -> None:
             budget.check()
             if time.monotonic() >= deadline:
                 raise TaskDeadlineExceeded()
             self._ensure_active(signed, token)
+        def publish(answer: str) -> None:
+            nonlocal published_answer
+            if not answer.startswith(published_answer):
+                raise ValueError("answer enrichment must only append evidence")
+            remaining = answer[len(published_answer):]
+            for offset in range(0, len(remaining), 2048):
+                check_active()
+                delta = remaining[offset:offset + 2048]
+                self.java.append_event(signed.task_id, token, "answer_delta",
+                    json.dumps({"text": delta}, ensure_ascii=False, separators=(",", ":")))
+                published_answer += delta
+        def failure_message(message: str) -> str:
+            return (message + f"；失败阶段：{phase}。"
+                    + ("已保留此前完成的回答和引用；重试将重新校验权限。" if published_answer else "尚无可展示成果。"))
         try:
             context = self.java.get_context(signed.task_id, token)
             self._assert_scope(context, signed)
@@ -111,6 +127,7 @@ class TaskRunner:
                 "picture_group_analysis" if is_group_analysis else
                 ("space_statistics" if is_space_statistics else "picture_keyword_search")
             )
+            phase = tool_name
             self.java.append_event(
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
@@ -186,24 +203,23 @@ class TaskRunner:
                 signed.task_id, token, "tool_result",
                 json.dumps(tool_result, separators=(",", ":")),
             )
-            if is_group_analysis:
-                result = self._add_group_similarity(
-                    result, selected, context, signed, token, check_active)
             for citation in result.citations:
                 self.java.append_event(
                     signed.task_id, token, "citation",
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
+            publish(result.answer)
+            if is_group_analysis:
+                phase = "GROUP_SIMILARITY"
+                result = self._add_group_similarity(
+                    result, selected, context, signed, token, check_active)
+                publish(result.answer)
             if not is_space_statistics:
+                phase = "VISUAL_ANALYSIS"
                 result = self._add_visual_analysis(
                     result, context, signed, token, check_active)
+                publish(result.answer)
             check_active()
-            self.java.append_event(
-                signed.task_id,
-                token,
-                "answer_delta",
-                json.dumps({"text": result.answer}, ensure_ascii=False, separators=(",", ":")),
-            )
             self.java.update_state(
                 signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
             )
@@ -212,7 +228,7 @@ class TaskRunner:
             outcome = "budget"
             if running:
                 self._try_fail(signed.task_id, token, status="FAILED", stage="BUDGET_EXCEEDED",
-                               error_code="BUDGET_EXCEEDED", error_message="任务调用或输出预算已用尽")
+                               error_code="BUDGET_EXCEEDED", error_message=failure_message("任务调用或输出预算已用尽"))
         except TaskCancelled:
             outcome = "cancelled"
         except TaskDeadlineExceeded:
@@ -220,7 +236,7 @@ class TaskRunner:
             if running:
                 self._try_fail(
                     signed.task_id, token, status="FAILED", stage="TIMEOUT",
-                    error_code="TASK_TIMEOUT", error_message="Agent 任务超过总执行时间限制",
+                    error_code="TASK_TIMEOUT", error_message=failure_message("Agent 任务超过总执行时间限制"),
                 )
         except ExecutorUnavailable:
             outcome = "unavailable"
@@ -242,7 +258,7 @@ class TaskRunner:
                     status="FAILED",
                     stage="INTERNAL_ERROR",
                     error_code="AGENT_INTERNAL_ERROR",
-                    error_message="Agent 执行失败，请稍后重试",
+                    error_message=failure_message("Agent 执行失败，请稍后重试"),
                 )
         finally:
             runtime_metrics.observe_task(outcome, time.monotonic() - started, empty_result)

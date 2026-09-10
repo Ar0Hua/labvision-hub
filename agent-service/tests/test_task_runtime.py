@@ -197,7 +197,7 @@ class TaskRuntimeTests(unittest.TestCase):
         self.assertTrue(any(request.url.path.endswith("/pictures/vision-inputs") for request in requests))
         event_bodies = [json.loads(request.content) for request in requests if request.content]
         answers = [body for body in event_bodies if body.get("eventType") == "answer_delta"]
-        self.assertIn("视觉模型观察", answers[0]["payloadJson"])
+        self.assertIn("视觉模型观察", "".join(json.loads(body["payloadJson"])["text"] for body in answers))
         tools = [json.loads(body["payloadJson"])["tool"] for body in event_bodies
                  if body.get("eventType") == "tool_result"]
         self.assertEqual(tools, ["picture_keyword_search", "vision_analysis"])
