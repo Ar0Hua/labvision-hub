@@ -145,6 +145,43 @@ class SemanticRetriever:
             if self._qdrant_client is None:
                 qdrant_client.close()
 
+    def search_by_image_data(self, data_url: str, scope_key, limit: int = 20,
+                             filters: dict | None = None) -> list[str]:
+        """Ephemeral image embedding; never upsert the input into the asset index."""
+        query_filter = self._filter(scope_key, filters)
+        embedding = self._embedding_client or httpx.Client(
+            base_url=self._settings.image_embedding_base_url,
+            timeout=self._settings.model_timeout_seconds)
+        qdrant = self._qdrant_client or httpx.Client(
+            base_url=self._settings.qdrant_url, timeout=self._settings.qdrant_timeout_seconds)
+        try:
+            reserve_model(self._settings.image_embedding_model, "temporary image", pictures=1)
+            response = embedding.post("/services/embeddings/multimodal-embedding/multimodal-embedding",
+                headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
+                json={"model": self._settings.image_embedding_model,
+                      "input": {"contents": [{"image": data_url}]},
+                      "parameters": {"dimension": self._settings.image_embedding_dimensions}})
+            response.raise_for_status()
+            body = response.json()
+            record_usage(self._settings.image_embedding_model, body)
+            vector = body["output"]["embeddings"][0]["embedding"]
+            if (not isinstance(vector, list) or len(vector) != self._settings.image_embedding_dimensions
+                    or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in vector)):
+                raise ValueError("invalid temporary image embedding")
+            reserve()
+            response = qdrant.post(f"/collections/{quote(self._settings.qdrant_collection, safe='')}/points/query",
+                headers={"api-key": self._settings.qdrant_api_key} if self._settings.qdrant_api_key else {},
+                json={"query": vector, "using": "image_dense", "filter": query_filter,
+                      "limit": min(max(limit, 1), 20), "with_payload": ["pictureId"], "with_vector": False})
+            response.raise_for_status()
+            ids = [p.get("payload", {}).get("pictureId") for p in response.json()["result"]["points"]]
+            return list(dict.fromkeys(v for v in ids if isinstance(v, str) and v.isdigit()))[:20]
+        finally:
+            if self._embedding_client is None:
+                embedding.close()
+            if self._qdrant_client is None:
+                qdrant.close()
+
     def picture_similarity_matrix(
         self, picture_ids: list[str], scope_key: str,
     ) -> PictureSimilarityMatrix:

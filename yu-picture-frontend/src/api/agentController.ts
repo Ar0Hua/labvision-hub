@@ -10,7 +10,12 @@ export const listAgentConversations = () => request<ApiResponse<AgentConversatio
 export const createAgentConversation = (spaceId?: string, allSpaces = false) => request<ApiResponse<{ conversationId: string }>>('/api/agent/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: { spaceId, allSpaces } })
 export const listAgentMessages = (id: string) => request<ApiResponse<AgentMessage[]>>(`/api/agent/conversations/${id}/messages`, { method: 'GET' })
 export const listAgentTasks = (id: string) => request<ApiResponse<AgentTask[]>>(`/api/agent/conversations/${id}/tasks`, { method: 'GET' })
-export const submitAgentMessage = (id: string, content: string, examplePictureIds: string[] = []) => request<ApiResponse<AgentTask>>(`/api/agent/conversations/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: { content, examplePictureIds } })
+export const submitAgentMessage = (id: string, content: string, examplePictureIds: string[] = [], temporaryImageId?: string) => request<ApiResponse<AgentTask>>(`/api/agent/conversations/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, data: { content, examplePictureIds, temporaryImageId } })
+export const uploadAgentTemporaryImage = (id: string, file: File) => {
+  const data = new FormData(); data.append('file', file)
+  return request<ApiResponse<{ temporaryId: string; expiresInSeconds: number }>>(`/api/agent/conversations/${id}/temporary-images`, { method: 'POST', data })
+}
+export const deleteAgentTemporaryImage = (id: string, temporaryId: string) => request(`/api/agent/conversations/${id}/temporary-images/${temporaryId}`, { method: 'DELETE' })
 export const listAgentTaskEvents = (id: string, afterEventId = '0') => request<ApiResponse<AgentTaskEvent[]>>(`/api/agent/tasks/${id}/events/history`, { method: 'GET', params: { afterEventId, limit: 200 } })
 export const cancelAgentTask = (id: string) => request<ApiResponse<AgentTask>>(`/api/agent/tasks/${id}/cancel`, { method: 'POST' })
 export const resumeAgentTask = (id: string) => request<ApiResponse<AgentTask>>(`/api/agent/tasks/${id}/resume`, { method: 'POST' })

@@ -9,6 +9,14 @@ from app.config import Settings
 from app.runtime.budget import reserve
 
 
+class TemporaryInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    temporaryId: str = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    width: int = Field(ge=1, le=1024)
+    height: int = Field(ge=1, le=1024)
+    dataUrl: str = Field(pattern=r"^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$", max_length=1398130, repr=False, exclude=True)
+
+
 class TaskContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -22,6 +30,8 @@ class TaskContext(BaseModel):
     query: str
     examplePictureIds: list[str] = Field(default_factory=list, max_length=20)
     status: str
+    temporaryImageId: str | None = None
+    temporaryImage: TemporaryInput | None = Field(default=None, exclude=True, repr=False)
 
 
 class PictureFeatures(BaseModel):
@@ -84,6 +94,10 @@ class JavaTaskClient:
     def get_context(self, task_id: str, token: str) -> TaskContext:
         data = self._request("GET", f"/agent/internal/tasks/{task_id}/context", token)
         return TaskContext.model_validate(data)
+
+    def get_temporary_image(self, task_id: str, token: str) -> TemporaryInput:
+        return TemporaryInput.model_validate(self._request(
+            "GET", f"/agent/internal/tasks/{task_id}/temporary-image", token))
 
     def get_space_comparison(self, task_id: str, token: str) -> list[SpaceStatistics]:
         data = self._request("GET", f"/agent/internal/tasks/{task_id}/spaces/compare", token)

@@ -14,6 +14,7 @@ public class AgentTask {
     private String conversationId;
     private String inputMessageId;
     private String examplePictureIdsJson;
+    private String temporaryImageId;
     private Long userId;
     private String status;
     private String stage;

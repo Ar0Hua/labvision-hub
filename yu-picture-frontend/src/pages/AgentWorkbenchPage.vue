@@ -68,6 +68,12 @@
       </section>
 
       <footer class="composer">
+        <div style="margin-bottom: 12px">
+          <label>临时图片 <input type="file" accept="image/png,image/jpeg" :disabled="uploading || !!activeTask" @change="uploadTemporary" /></label>
+          <small>仅 PNG/JPEG，5MB 内；缓存 15 分钟，不入图库。发送后将用于云端模型分析或相似检索。</small>
+          <div v-if="temporaryImageId">已选择：{{ temporaryImageName }} <a-button size="small" @click="clearTemporary">移除</a-button></div>
+          <span v-if="uploading">正在校验上传…</span>
+        </div>
         <div class="example-picker">
           <span>平台样例图</span>
           <a-select v-model:value="selectedPictureIds" mode="tags" :max-tag-count="3"
@@ -80,7 +86,7 @@
           <span>仅显示执行阶段、工具与证据，不展示模型隐藏思维链</span>
           <a-space>
             <a-button v-if="activeTask" danger @click="cancelTask">停止</a-button>
-            <a-button type="primary" :loading="submitting" :disabled="!!activeTask" @click="submit">发送</a-button>
+            <a-button type="primary" :loading="submitting" :disabled="!!activeTask || uploading" @click="submit">发送</a-button>
           </a-space>
         </div>
       </footer>
@@ -95,7 +101,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { message as antMessage } from 'ant-design-vue'
 import { cancelAgentTask, createAgentConversation, listAgentConversations, listAgentMessages,
-  listAgentTaskEvents, listAgentTasks, resumeAgentTask, submitAgentMessage,
+  listAgentTaskEvents, listAgentTasks, resumeAgentTask, submitAgentMessage, uploadAgentTemporaryImage, deleteAgentTemporaryImage,
   type AgentConversation, type AgentTask, type AgentTaskEvent } from '@/api/agentController'
 import { connectAgentTaskEvents, type AgentStreamEvent } from '@/utils/agentEventStream'
 
@@ -111,6 +117,39 @@ const selectedPictureIds = ref<string[]>(routePictureId ? [routePictureId] : [])
 const loadingConversations = ref(false)
 const loadingHistory = ref(false)
 const submitting = ref(false)
+const uploading = ref(false)
+const temporaryImageId = ref('')
+const temporaryImageName = ref('')
+
+async function clearTemporary() {
+  const id = temporaryImageId.value
+  temporaryImageId.value = ''; temporaryImageName.value = ''
+  if (id) try { await deleteAgentTemporaryImage(activeConversationId.value, id) }
+  catch (error) { showError(error, '删除失败，临时图片仍将在15分钟内自动过期') }
+}
+
+async function uploadTemporary(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]; input.value = ''
+  if (!file || uploading.value || activeTask.value) return
+  if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    antMessage.error('仅支持5MB内的PNG/JPEG'); return
+  }
+  uploading.value = true
+  try {
+    if (!activeConversationId.value) await createConversation()
+    if (!activeConversationId.value) return
+    const conversationId = activeConversationId.value
+    const response = await uploadAgentTemporaryImage(conversationId, file)
+    if (response.data.code !== 0 || !response.data.data) throw new Error(response.data.message || '上传失败')
+    if (conversationId !== activeConversationId.value) {
+      await deleteAgentTemporaryImage(conversationId, response.data.data.temporaryId); return
+    }
+    await clearTemporary()
+    temporaryImageId.value = response.data.data.temporaryId; temporaryImageName.value = file.name
+  } catch (error) { showError(error, '临时图片上传失败') }
+  finally { uploading.value = false }
+}
 const messageContainer = ref<HTMLElement>()
 let disconnect: (() => void) | undefined
 
@@ -204,6 +243,7 @@ async function createConversation() {
 
 async function selectConversation(id: string) {
   if (activeConversationId.value === id && turns.value.length) return
+  temporaryImageId.value = ''; temporaryImageName.value = ''
   disconnect?.(); disconnect = undefined
   activeConversationId.value = id
   loadingHistory.value = true
@@ -244,15 +284,17 @@ async function submit() {
     antMessage.error('请输入 1 至 20 个有效的平台图片 ID')
     return
   }
-  const content = draft.value.trim() || (ids.length ? '查找与所选图片视觉相似的资产' : '')
-  if (!content || submitting.value || activeTask.value) return
+  const content = draft.value.trim() || (ids.length || temporaryImageId.value ? '查找与所选图片视觉相似的资产' : '')
+  if (!content || submitting.value || activeTask.value || uploading.value) return
   submitting.value = true
   try {
     if (!activeConversationId.value) await createConversation()
     if (!activeConversationId.value) return
-    const response = await submitAgentMessage(activeConversationId.value, content, ids)
+    if (ids.length && temporaryImageId.value) throw new Error('请在平台样例图和临时图片之间选择一种输入')
+    const response = await submitAgentMessage(activeConversationId.value, content, ids, temporaryImageId.value || undefined)
     const task = response.data.data
     if (response.data.code !== 0 || !task) throw new Error(response.data.message || '提交失败')
+    temporaryImageId.value = ''; temporaryImageName.value = ''
     const turn: Turn = { task, query: content, answer: '', citations: [], tools: [], cursor: '0' }
     turns.value.push(turn); draft.value = ''; connect(turn); await scrollToBottom()
   } catch (error) { showError(error, '任务提交失败') }

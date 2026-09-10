@@ -25,6 +25,18 @@ public class AgentConversationController {
     @Resource private AgentPictureService pictures;
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskService tasks;
+    @Resource private com.yupi.yupicture.application.agent.AgentTemporaryImageService temporaryImages;
+
+    @PostMapping("/{id}/temporary-images")
+    public BaseResponse<Map<String,Object>> uploadTemporary(@PathVariable String id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,HttpServletRequest request) {
+        return ResultUtils.success(temporaryImages.upload(id,users.getLoginUser(request),file));
+    }
+    @DeleteMapping("/{id}/temporary-images/{temporaryId}")
+    public BaseResponse<Boolean> deleteTemporary(@PathVariable String id,@PathVariable String temporaryId,HttpServletRequest request) {
+        temporaryImages.remove(id,users.getLoginUser(request),temporaryId);
+        return ResultUtils.success(true);
+    }
 
     @PostMapping
     public BaseResponse<Map<String, String>> create(
@@ -47,7 +59,7 @@ public class AgentConversationController {
     @PostMapping("/{id}/messages")
     public BaseResponse<AgentTaskVO> createMessage(@PathVariable String id,@RequestBody AgentMessageCreateRequest body,HttpServletRequest request) {
         return ResultUtils.success(tasks.submit(id,body==null?null:body.getContent(),
-                body==null?null:body.getExamplePictureIds(),users.getLoginUser(request)));
+                body==null?null:body.getExamplePictureIds(),body==null?null:body.getTemporaryImageId(),users.getLoginUser(request)));
     }
     @GetMapping("/{id}/messages")
     public BaseResponse<List<AgentMessage>> listMessages(@PathVariable String id,HttpServletRequest request) {

@@ -55,6 +55,7 @@ public class AgentInternalTaskService {
         result.put("spaceId",stringId(conversation.getSpaceId()));
         result.put("query",message.getContent());
         result.put("examplePictureIds",parsePictureIds(task.getExamplePictureIdsJson()));
+        result.put("temporaryImageId",task.getTemporaryImageId());
         result.put("status",task.getStatus());
         return result;
     }

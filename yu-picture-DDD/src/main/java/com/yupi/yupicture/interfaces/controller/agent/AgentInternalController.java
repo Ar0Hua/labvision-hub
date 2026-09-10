@@ -20,6 +20,15 @@ public class AgentInternalController {
     @Resource private AgentInternalPictureDetailsService pictureDetails;
     @Resource private AgentInternalPictureVisionService pictureVision;
     @Resource private AgentInternalSpaceAnalyzeService spaceAnalyze;
+    @Resource private com.yupi.yupicture.application.agent.AgentTemporaryImageService temporaryImages;
+
+    @GetMapping("/{id}/temporary-image")
+    public BaseResponse<Map<String,Object>> temporaryImage(@PathVariable String id,@RequestHeader("Authorization") String token) {
+        Map<String,Object> context=internal.context(token,id);
+        com.yupi.yupicture.domain.user.entity.User user=new com.yupi.yupicture.domain.user.entity.User();
+        user.setId(Long.valueOf(context.get("userId").toString()));user.setUserRole((String)context.get("userRole"));
+        return ResultUtils.success(temporaryImages.load(context.get("conversationId").toString(),user,(String)context.get("temporaryImageId")));
+    }
 
     @GetMapping("/{id}/context")
     public BaseResponse<Map<String,Object>> context(@PathVariable String id,

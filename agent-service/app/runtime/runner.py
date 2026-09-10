@@ -133,6 +133,15 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
+            if context.temporaryImageId:
+                phase = "TEMPORARY_INPUT"
+                check_active()
+                context.temporaryImage = self.java.get_temporary_image(signed.task_id, token)
+                if context.temporaryImage.temporaryId != context.temporaryImageId:
+                    raise ValueError("temporary image binding mismatch")
+            is_temporary_analysis = bool(context.temporaryImage and
+                any(word in context.query for word in ("分析", "解释", "描述", "质量", "文字")) and
+                not any(word in context.query for word in ("查找", "搜索", "找相似", "检索")))
             is_space_comparison = "比较空间" in context.query
             is_group_analysis = not is_space_comparison and PictureGroupAnalyzer.matches(
                 context.query, context.examplePictureIds)
@@ -153,7 +162,11 @@ class TaskRunner:
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            if context.allSpaces and is_space_statistics and not is_space_comparison:
+            if is_temporary_analysis:
+                is_single_analysis = is_group_analysis = is_space_statistics = False
+                result = ExecutionResult(f"本次输入为临时图片（{context.temporaryImage.width} × {context.temporaryImage.height}），不属于站内资产，没有永久图片 ID。", [], 0)
+                tool_result = {"tool": "temporary_image_analysis"}
+            elif context.allSpaces and is_space_statistics and not is_space_comparison:
                 result = ExecutionResult("当前会话为全范围检索。空间统计请进入具体空间，或明确输入‘比较空间 ID1、ID2’；不会用公共图库统计冒充全范围统计。", [], 0)
                 tool_result = {"tool": "scope_clarification"}
             elif is_space_comparison:
@@ -233,12 +246,17 @@ class TaskRunner:
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
             publish(result.answer)
+            if is_temporary_analysis:
+                phase = "TEMPORARY_VISUAL_ANALYSIS"
+                check_active()
+                observation = self.vision.analyze_temporary(context.query, context.temporaryImage) if self.vision else None
+                publish(result.answer + "\n\n" + (observation or "视觉模型未启用或分析失败；未生成视觉结论。"))
             if is_group_analysis:
                 phase = "GROUP_SIMILARITY"
                 result = self._add_group_similarity(
                     result, selected, context, signed, token, check_active)
                 publish(result.answer)
-            if not is_space_statistics:
+            if not is_space_statistics and not is_temporary_analysis:
                 phase = "VISUAL_ANALYSIS"
                 result = self._add_visual_analysis(
                     result, context, signed, token, check_active)

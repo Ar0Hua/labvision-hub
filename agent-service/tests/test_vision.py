@@ -30,7 +30,8 @@ class VisionAnalyzerTests(unittest.TestCase):
         answer = analyzer.analyze("比较曲线", [self._input("1"), self._input("2")])
 
         self.assertIn("pictureId=1", answer)
-        user_content = captured["messages"][0]["content"]
+        self.assertEqual(captured["messages"][0]["role"], "system")
+        user_content = captured["messages"][1]["content"]
         self.assertEqual(len([item for item in user_content if item["type"] == "image_url"]), 1)
         self.assertNotIn("https://signed.example/2", str(user_content))
 

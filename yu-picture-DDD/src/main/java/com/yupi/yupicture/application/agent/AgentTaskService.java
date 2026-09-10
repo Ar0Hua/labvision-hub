@@ -23,6 +23,7 @@ public class AgentTaskService {
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskMapper mapper;
     @Resource private AgentPictureService pictures;
+    @Resource private AgentTemporaryImageService temporaryImages;
     @Resource private AgentTaskEventService events;
     @Resource private ApplicationEventPublisher publisher;
 
@@ -35,6 +36,14 @@ public class AgentTaskService {
     @Transactional(rollbackFor = Exception.class)
     public AgentTaskVO submit(String conversationId, String content,
                               List<Long> examplePictureIds, User user) {
+        return submit(conversationId,content,examplePictureIds,null,user);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AgentTaskVO submit(String conversationId,String content,List<Long> examplePictureIds,String temporaryImageId,User user) {
+        if(temporaryImageId!=null && examplePictureIds!=null && !examplePictureIds.isEmpty())
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"平台样例图与临时图片不能同时使用");
+        if(temporaryImageId!=null) temporaryImages.load(conversationId,user,temporaryImageId);
         List<Long> examples = examplePictureIds == null ? Collections.emptyList()
                 : new ArrayList<>(new LinkedHashSet<>(examplePictureIds));
         if (examples.size() > 20 || examples.stream().anyMatch(id -> id == null || id <= 0)) {
@@ -49,6 +58,7 @@ public class AgentTaskService {
         task.setConversationId(conversationId);
         task.setInputMessageId(message.getId());
         task.setExamplePictureIdsJson(examples.isEmpty() ? null : JSONUtil.toJsonStr(examples));
+        task.setTemporaryImageId(temporaryImageId);
         task.setUserId(user.getId());
         task.setStatus("PENDING");
         task.setStage("QUEUED");
@@ -94,6 +104,7 @@ public class AgentTaskService {
     @Transactional(rollbackFor = Exception.class)
     public AgentTaskVO resume(String taskId, User user) {
         AgentTask task = requireTask(taskId, user);
+        if(task.getTemporaryImageId()!=null) temporaryImages.load(task.getConversationId(),user,task.getTemporaryImageId());
         int retries = task.getRetryCount() == null ? 0 : task.getRetryCount();
         int changed = mapper.update(null, new UpdateWrapper<AgentTask>()
                 .eq("id", taskId).in("status", "FAILED", "CANCELLED")

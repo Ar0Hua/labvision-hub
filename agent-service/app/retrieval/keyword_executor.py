@@ -73,10 +73,22 @@ class KeywordSearchExecutor:
         check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
+        temporary_status = "临时图片向量检索不可用，本次仅展示文字检索结果。" if context.temporaryImage else ""
         if self._semantic and self._semantic.enabled:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
             if context.allSpaces:
                 scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
+            if context.temporaryImage:
+                try:
+                    image_ids = self._semantic.search_by_image_data(context.temporaryImage.dataUrl, scope_key, 20, filters)
+                    check_active()
+                    image_candidates = authorize(image_ids)
+                    check_active()
+                    metadata.update({p.pictureId: p for p in image_candidates})
+                    channels["image"] = [p.pictureId for p in image_candidates]
+                    temporary_status = "已使用临时图片进行向量检索；临时图片不会加入图库或永久索引。"
+                except Exception:
+                    check_active()
             try:
                 vector_ids = self._semantic.search(intent.searchText, scope_key, 20, filters)
                 check_active()
@@ -156,12 +168,14 @@ class KeywordSearchExecutor:
         ]
         if not candidates:
             return ExecutionResult(
-                answer="当前会话可访问的图片中，没有找到与该关键词匹配的视觉资产。",
+                answer="当前会话可访问的图片中，没有找到匹配的视觉资产。" + temporary_status,
                 citations=[],
                 intent_state=intent.model_dump(mode="json"),
                 candidate_count=0,
             )
         lines = [f"在当前会话可访问范围内找到 {len(candidates)} 项相关视觉资产："]
+        if temporary_status:
+            lines.append(temporary_status)
         lines.append("匹配分为渠道排名、元数据匹配及可用质量特征的排序信号，不是视觉余弦相似度或实验置信度；权重尚待真实评测校准。")
         if intent.targetColor:
             lines.append(f"颜色条件：主色 RGB 每通道距 {intent.targetColor} 不超过 {intent.colorTolerance}；不是感知色差分数。")
