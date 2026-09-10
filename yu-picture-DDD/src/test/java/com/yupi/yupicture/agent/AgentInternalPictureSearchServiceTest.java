@@ -61,6 +61,26 @@ class AgentInternalPictureSearchServiceTest {
         assertThrows(BusinessException.class, () -> f.service.search("Bearer token", TASK, request));
     }
 
+    @Test void uploaderConditionCannotReplaceScopeAndRejectsInvalidIds() {
+        Fixture f = fixture("9");
+        when(f.pictures.list(any(Wrapper.class))).thenReturn(Collections.emptyList());
+        AgentInternalSearchRequest request = new AgentInternalSearchRequest();
+        request.setUploaderId("2059881449783808001");
+        f.service.search("Bearer token", TASK, request);
+        ArgumentCaptor<QueryWrapper<Picture>> captor = wrapperCaptor();
+        verify(f.pictures).list(captor.capture());
+        String sql = captor.getValue().getSqlSegment();
+        assertTrue(sql.contains("userId"));
+        assertTrue(sql.contains("spaceId"));
+        assertTrue(sql.contains("isDelete"));
+        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(2059881449783808001L));
+        for (String id : Arrays.asList("0", "-1", "01", "1 OR 1=1", "9223372036854775808")) {
+            request.setUploaderId(id);
+            assertThrows(BusinessException.class, () -> f.service.search("Bearer token", TASK, request));
+        }
+        verify(f.pictures, times(1)).list(any(Wrapper.class));
+    }
+
     private Fixture fixture(String spaceId) {
         Fixture f = new Fixture();
         f.service = new AgentInternalPictureSearchService();

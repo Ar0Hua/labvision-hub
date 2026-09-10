@@ -237,6 +237,8 @@ class SemanticRetriever:
         if values.get("formats"):
             must.append({"key": "picFormat", "match": {"any": values["formats"]}})
         zone = timezone(timedelta(hours=8))
+        if values.get("uploaderId"):
+            must.append({"key": "userId", "match": {"value": values["uploaderId"]}})
         if values.get("createdAfter"):
             after = datetime.combine(date.fromisoformat(values["createdAfter"]), time.min, zone)
             must.append({"key": "createdAtEpoch", "range": {"gte": int(after.timestamp())}})

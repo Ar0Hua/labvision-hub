@@ -61,6 +61,8 @@ public class AgentInternalPictureSearchService {
         if (request.getMaxSizeBytes() != null)
             query.le("picSize", request.getMaxSizeBytes());
         String sort = trim(request.getSort());
+        if (request.getUploaderId() != null)
+            query.eq("userId", Long.valueOf(request.getUploaderId()));
         if ("oldest".equals(sort)) {
             query.orderByAsc("createTime").orderByAsc("id");
         } else {
@@ -115,6 +117,14 @@ public class AgentInternalPictureSearchService {
         if (after != null && before != null && after.isAfter(before)) invalid();
         String sort = trim(request.getSort());
         if (sort != null && !Arrays.asList("relevance", "newest", "oldest").contains(sort)) invalid();
+        if (request.getUploaderId() != null) {
+            if (!request.getUploaderId().matches("[1-9][0-9]{0,18}")) invalid();
+            try {
+                Long.parseLong(request.getUploaderId());
+            } catch (NumberFormatException exception) {
+                invalid();
+            }
+        }
     }
 
     private String trim(String value) {

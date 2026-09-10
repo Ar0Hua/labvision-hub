@@ -16,4 +16,5 @@ public class AgentInternalSearchRequest {
     private Integer minHeight;
     private Long maxSizeBytes;
     private String sort;
+    private String uploaderId;
 }

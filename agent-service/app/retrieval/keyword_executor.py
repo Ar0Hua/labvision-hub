@@ -53,6 +53,7 @@ class KeywordSearchExecutor:
             "minWidth": intent.minWidth,
             "minHeight": intent.minHeight,
             "maxSizeBytes": intent.maxSizeBytes,
+            "uploaderId": intent.uploaderId,
             "sort": intent.sort,
             "excludePictureIds": intent.excludePictureIds,
         }
@@ -111,6 +112,8 @@ class KeywordSearchExecutor:
                                       for picture in candidates[offset:offset + 20]]))
         authorized = {picture.pictureId: picture for picture in checked}
         candidates = [authorized[p.pictureId] for p in candidates if p.pictureId in authorized]
+        if intent.uploaderId is not None:
+            candidates = [p for p in candidates if p.uploaderId == intent.uploaderId]
         check_active()
         candidates = order_candidates(candidates, intent.sort)
         seen_hashes = set()
