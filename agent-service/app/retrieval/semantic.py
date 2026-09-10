@@ -252,6 +252,13 @@ class SemanticRetriever:
             must.append({"key": "picHeight", "range": {"gte": values["minHeight"]}})
         if values.get("maxSizeBytes") is not None:
             must.append({"key": "picSize", "range": {"lte": values["maxSizeBytes"]}})
+        ratio_range = {}
+        if values.get("minAspectRatio") is not None:
+            ratio_range["gte"] = values["minAspectRatio"]
+        if values.get("maxAspectRatio") is not None:
+            ratio_range["lte"] = values["maxAspectRatio"]
+        if ratio_range:
+            must.append({"key": "aspectRatio", "range": ratio_range})
         result = {"must": must}
         if values.get("excludePictureIds"):
             result["must_not"] = [{

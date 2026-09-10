@@ -54,6 +54,8 @@ class KeywordSearchExecutor:
             "minHeight": intent.minHeight,
             "maxSizeBytes": intent.maxSizeBytes,
             "uploaderId": intent.uploaderId,
+            "minAspectRatio": intent.minAspectRatio,
+            "maxAspectRatio": intent.maxAspectRatio,
             "sort": intent.sort,
             "excludePictureIds": intent.excludePictureIds,
         }
@@ -114,6 +116,10 @@ class KeywordSearchExecutor:
         candidates = [authorized[p.pictureId] for p in candidates if p.pictureId in authorized]
         if intent.uploaderId is not None:
             candidates = [p for p in candidates if p.uploaderId == intent.uploaderId]
+        if intent.minAspectRatio is not None or intent.maxAspectRatio is not None:
+            candidates = [p for p in candidates if p.width and p.height and p.width > 0 and p.height > 0
+                          and (intent.minAspectRatio is None or p.width / p.height >= intent.minAspectRatio)
+                          and (intent.maxAspectRatio is None or p.width / p.height <= intent.maxAspectRatio)]
         check_active()
         candidates = order_candidates(candidates, intent.sort)
         seen_hashes = set()

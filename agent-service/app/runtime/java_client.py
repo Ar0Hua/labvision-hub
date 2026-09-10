@@ -129,7 +129,7 @@ class JavaTaskClient:
     ) -> list[PictureCandidate]:
         body = {"searchText": search_text, "category": category, "tags": tags or [], "limit": limit}
         allowed = ("formats", "createdAfter", "createdBefore", "minWidth", "minHeight",
-                   "maxSizeBytes", "sort", "uploaderId")
+                   "maxSizeBytes", "sort", "uploaderId", "minAspectRatio", "maxAspectRatio")
         for key in allowed:
             if filters and key in filters:
                 body[key] = filters[key]

@@ -17,4 +17,6 @@ public class AgentInternalSearchRequest {
     private Long maxSizeBytes;
     private String sort;
     private String uploaderId;
+    private Double minAspectRatio;
+    private Double maxAspectRatio;
 }

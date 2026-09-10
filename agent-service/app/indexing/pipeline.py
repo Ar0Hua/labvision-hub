@@ -182,6 +182,8 @@ class PictureIndexWorker:
             "category": job.category, "tags": self._tags(job.tags),
             "picFormat": job.picFormat, "picWidth": job.picWidth,
             "picHeight": job.picHeight, "picSize": job.picSize,
+            "aspectRatio": (job.picWidth / job.picHeight
+                            if job.picWidth and job.picHeight and job.picWidth > 0 and job.picHeight > 0 else None),
             "picColor": job.picColor, "createdAtEpoch": job.createdAtEpoch,
             "sourceUpdatedAtEpoch": job.sourceUpdatedAtEpoch,
             "featureVersion": self._settings.feature_version,

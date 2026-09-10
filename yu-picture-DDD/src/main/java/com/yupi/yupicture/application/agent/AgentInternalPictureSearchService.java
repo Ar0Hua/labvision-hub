@@ -60,6 +60,12 @@ public class AgentInternalPictureSearchService {
         if (request.getMinHeight() != null) query.ge("picHeight", request.getMinHeight());
         if (request.getMaxSizeBytes() != null)
             query.le("picSize", request.getMaxSizeBytes());
+        if (request.getMinAspectRatio() != null)
+            query.gt("picHeight", 0).gt("picWidth", 0)
+                    .apply("picWidth / NULLIF(picHeight, 0) >= {0}", request.getMinAspectRatio());
+        if (request.getMaxAspectRatio() != null)
+            query.gt("picHeight", 0).gt("picWidth", 0)
+                    .apply("picWidth / NULLIF(picHeight, 0) <= {0}", request.getMaxAspectRatio());
         String sort = trim(request.getSort());
         if (request.getUploaderId() != null)
             query.eq("userId", Long.valueOf(request.getUploaderId()));
@@ -92,6 +98,10 @@ public class AgentInternalPictureSearchService {
         if (request == null || request.getLimit() != null && (request.getLimit() < 1 || request.getLimit() > 20)) {
             invalid();
         }
+        for (Double ratio : Arrays.asList(request.getMinAspectRatio(), request.getMaxAspectRatio()))
+            if (ratio != null && (!Double.isFinite(ratio) || ratio < 0.01 || ratio > 100)) invalid();
+        if (request.getMinAspectRatio() != null && request.getMaxAspectRatio() != null
+                && request.getMinAspectRatio() > request.getMaxAspectRatio()) invalid();
         check(trim(request.getSearchText()), 100);
         check(trim(request.getCategory()), 32);
         if (request.getTags() != null) {
