@@ -148,6 +148,14 @@ class SemanticRetriever:
     def search_by_image_data(self, data_url: str, scope_key, limit: int = 20,
                              filters: dict | None = None) -> list[str]:
         """Ephemeral image embedding; never upsert the input into the asset index."""
+        return self._search_multimodal({"image":data_url}, scope_key, limit, filters)
+
+    def search_visual_text(self, text: str, scope_key, limit: int = 20,
+                           filters: dict | None = None) -> list[str]:
+        """Use the same multimodal model as indexed pictures, not the metadata embedding."""
+        return self._search_multimodal({"text":text[:500]}, scope_key, limit, filters)
+
+    def _search_multimodal(self, content: dict, scope_key, limit, filters):
         query_filter = self._filter(scope_key, filters)
         embedding = self._embedding_client or httpx.Client(
             base_url=self._settings.image_embedding_base_url,
@@ -155,11 +163,12 @@ class SemanticRetriever:
         qdrant = self._qdrant_client or httpx.Client(
             base_url=self._settings.qdrant_url, timeout=self._settings.qdrant_timeout_seconds)
         try:
-            reserve_model(self._settings.image_embedding_model, "temporary image", pictures=1)
+            reserve_model(self._settings.image_embedding_model, content.get("text", "temporary image"),
+                          pictures=1 if "image" in content else 0)
             response = embedding.post("/services/embeddings/multimodal-embedding/multimodal-embedding",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
                 json={"model": self._settings.image_embedding_model,
-                      "input": {"contents": [{"image": data_url}]},
+                      "input": {"contents": [content]},
                       "parameters": {"dimension": self._settings.image_embedding_dimensions}})
             response.raise_for_status()
             body = response.json()

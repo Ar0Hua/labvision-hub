@@ -78,6 +78,16 @@ class KeywordSearchExecutor:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
             if context.allSpaces:
                 scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
+            if not context.temporaryImage and not intent.examplePictureIds:
+                try:
+                    image_ids = self._semantic.search_visual_text(intent.searchText, scope_key, 20, filters)
+                    check_active()
+                    image_candidates = authorize(image_ids)
+                    check_active()
+                    metadata.update({p.pictureId:p for p in image_candidates})
+                    channels["image"] = [p.pictureId for p in image_candidates]
+                except Exception:
+                    check_active()
             if context.temporaryImage:
                 try:
                     image_ids = self._semantic.search_by_image_data(context.temporaryImage.dataUrl, scope_key, 20, filters)
