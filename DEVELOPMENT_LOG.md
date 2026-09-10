@@ -1,3 +1,7 @@
+# Step 80：迟到输出保护
+
+- 任务行锁内拒绝非RUNNING状态追加事件，覆盖取消竞争，详见 agent-service/STEP-80.md。
+
 # Step 79：恢复与历史安全复核
 
 - checkpoint、引用发布、答案追加和历史回放均复核引用图片，详见 agent-service/STEP-79.md。

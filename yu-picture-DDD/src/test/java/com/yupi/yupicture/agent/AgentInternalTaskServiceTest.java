@@ -44,6 +44,7 @@ class AgentInternalTaskServiceTest {
 
     @Test void eventWriteRequiresFreshContext() {
         Fixture f=fixture();
+        f.tasks.selectById("task").setStatus("RUNNING");
         f.service.appendEvent("Bearer token","task","citation","{}");
         verify(f.events).append("task","citation","{}");
         when(f.conversations.selectById("conversation")).thenReturn(null);

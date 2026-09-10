@@ -64,6 +64,8 @@ public class AgentInternalTaskService {
     public void appendEvent(String bearerToken,String taskId,String type,String payload) {
         tasks.lockById(taskId);
         Map<String,Object> taskContext=context(bearerToken,taskId);
+        if(!"RUNNING".equals(taskContext.get("status")))
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"任务已停止，不能继续追加输出");
         if("citation".equals(type) || "answer_delta".equals(type)) {
             User user=new User();user.setId(Long.valueOf(taskContext.get("userId").toString()));
             user.setUserRole((String)taskContext.get("userRole"));
