@@ -41,7 +41,11 @@
                 <router-link :to="`/picture/${citation.pictureId}`" class="citation-card">
                   <span>{{ citation.name || '未命名图片' }}</span>
                   <small>ID {{ citation.pictureId }}{{ citation.category ? ` · ${citation.category}` : '' }}</small>
+                  <small v-if="citation.matchLevel">{{ citation.matchLevel }}匹配（排序信号）</small>
                 </router-link>
+                <details v-if="citation.scoreBreakdown"><summary>查看排序依据</summary>
+                  <p style="overflow-wrap: anywhere">{{ citation.scoreBreakdown }}</p>
+                </details>
                 <a-select style="width: 100%; margin-top: 8px" placeholder="反馈相关性"
                   :value="feedbackValues[turn.task.taskId + ':' + citation.pictureId]"
                   :options="feedbackOptions" @change="value => saveFeedback(turn, citation.pictureId, String(value))" />
@@ -92,7 +96,7 @@ import { cancelAgentTask, createAgentConversation, listAgentConversations, listA
   type AgentConversation, type AgentTask, type AgentTaskEvent } from '@/api/agentController'
 import { connectAgentTaskEvents, type AgentStreamEvent } from '@/utils/agentEventStream'
 
-type Citation = { pictureId: string; name?: string; category?: string }
+type Citation = { pictureId: string; name?: string; category?: string; matchLevel?: string; scoreBreakdown?: string }
 type Turn = { task: AgentTask; query: string; answer: string; citations: Citation[]; tools: string[]; cursor: string }
 const route = useRoute()
 const conversations = ref<AgentConversation[]>([])
@@ -153,7 +157,8 @@ async function exportReport(turn: Turn, format: 'md' | 'json') {
       taskCreatedAt: turn.task.createTime, scope: scopeLabel.value,
       query: scrub(turn.query), answer: scrub(turn.answer),
       citations: turn.citations.map(c => ({ pictureId: c.pictureId, name: scrub(c.name || ''),
-        category: scrub(c.category || '') })),
+        category: scrub(c.category || ''), matchLevel: c.matchLevel,
+        scoreBreakdown: c.scoreBreakdown })),
       limitations: '基于任务生成时的证据；下载时已重新检查图片权限。视觉观察和初始阈值不代表实验结论。',
     }
     const text = format === 'json' ? JSON.stringify(report, null, 2)

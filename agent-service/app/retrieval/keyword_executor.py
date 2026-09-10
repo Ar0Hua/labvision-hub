@@ -7,6 +7,7 @@ from app.retrieval.intent import IntentParser
 from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.ordering import order_candidates
 from app.retrieval.visual_filters import matches_visual
+from app.retrieval.rerank import rerank, score_json
 from app.retrieval.semantic import SemanticRetriever
 
 
@@ -125,8 +126,9 @@ class KeywordSearchExecutor:
                           and (intent.minAspectRatio is None or p.width / p.height >= intent.minAspectRatio)
                           and (intent.maxAspectRatio is None or p.width / p.height <= intent.maxAspectRatio)]
         check_active()
-        candidates = order_candidates(candidates, intent.sort)
         candidates = [p for p in candidates if matches_visual(p, intent)]
+        candidates, scores = rerank(candidates, channels, intent)
+        candidates = order_candidates(candidates, intent.sort)
         seen_hashes = set()
         visible = []
         collapsed = 0
@@ -144,6 +146,9 @@ class KeywordSearchExecutor:
                 "pictureId": picture.pictureId,
                 "name": picture.name,
                 "category": picture.category,
+                "scoreBreakdown": score_json(scores[picture.pictureId]),
+                "matchLevel": ("高" if scores[picture.pictureId]["rerankScore"] >= .75 else
+                               "中" if scores[picture.pictureId]["rerankScore"] >= .4 else "低"),
             }
             for picture in candidates
         ]
@@ -155,6 +160,7 @@ class KeywordSearchExecutor:
                 candidate_count=0,
             )
         lines = [f"在当前会话可访问范围内找到 {len(candidates)} 项相关视觉资产："]
+        lines.append("匹配分为渠道排名、元数据匹配及可用质量特征的排序信号，不是视觉余弦相似度或实验置信度；权重尚待真实评测校准。")
         if intent.targetColor:
             lines.append(f"颜色条件：主色 RGB 每通道距 {intent.targetColor} 不超过 {intent.colorTolerance}；不是感知色差分数。")
         if intent.brightness:
