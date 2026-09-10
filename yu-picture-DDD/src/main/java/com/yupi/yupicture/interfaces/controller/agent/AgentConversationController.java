@@ -25,6 +25,13 @@ public class AgentConversationController {
     @Resource private AgentPictureService pictures;
     @Resource private AgentMessageService messages;
     @Resource private AgentTaskService tasks;
+    @Resource private com.yupi.yupicture.application.agent.AgentInternalPictureVisionService previews;
+
+    @PostMapping("/{id}/pictures/previews")
+    public BaseResponse<List<Map<String,Object>>> previews(@PathVariable String id,
+            @RequestBody List<Long> pictureIds,HttpServletRequest request) {
+        return ResultUtils.success(previews.previews(id,pictureIds,users.getLoginUser(request)));
+    }
     @Resource private com.yupi.yupicture.application.agent.AgentTemporaryImageService temporaryImages;
 
     @PostMapping("/{id}/temporary-images")

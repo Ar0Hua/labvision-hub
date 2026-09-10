@@ -33,8 +33,14 @@ public class AgentInternalPictureVisionService {
         User user = new User();
         user.setId(Long.valueOf(context.get("userId").toString()));
         user.setUserRole((String)context.get("userRole"));
-        List<Map<String, Object>> metadata = authorizedPictures.details(
-                context.get("conversationId").toString(), pictureIds, user);
+        return previews(context.get("conversationId").toString(),pictureIds,user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String,Object>> previews(String conversationId,List<Long> pictureIds,User user) {
+        if(pictureIds==null || pictureIds.isEmpty() || pictureIds.size()>MAX_VISION_PICTURES)
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"请选择1至8张图片");
+        List<Map<String, Object>> metadata = authorizedPictures.details(conversationId, pictureIds, user);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> item : metadata) {
             Long pictureId = Long.valueOf(item.get("pictureId").toString());

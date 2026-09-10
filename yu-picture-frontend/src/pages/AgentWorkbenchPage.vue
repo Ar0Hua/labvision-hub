@@ -46,6 +46,7 @@
                   <small>ID {{ citation.pictureId }}{{ citation.category ? ` · ${citation.category}` : '' }}</small>
                   <small v-if="citation.matchLevel">{{ citation.matchLevel }}匹配（排序信号）</small>
                 </router-link>
+                <AgentCitationDetails :conversation-id="turn.task.conversationId" :picture-id="citation.pictureId" />
                 <details v-if="citation.scoreBreakdown"><summary>查看排序依据</summary>
                   <p style="overflow-wrap: anywhere">{{ citation.scoreBreakdown }}</p>
                 </details>
@@ -96,6 +97,7 @@
 
 <script setup lang="ts">
 import AgentAnswer from '@/components/AgentAnswer.vue'
+import AgentCitationDetails from '@/components/AgentCitationDetails.vue'
 import request from '@/request'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
