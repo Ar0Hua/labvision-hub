@@ -163,7 +163,20 @@ class IntentParser:
             response.raise_for_status()
             record_usage(self._settings.chat_model, response.json())
             content = response.json()["choices"][0]["message"]["content"]
-            intent = SearchIntent.model_validate(json.loads(content))
+            try:
+                intent = SearchIntent.model_validate(json.loads(content))
+            except (ValueError, TypeError, ValidationError):
+                # One bounded regeneration from the original request; do not echo untrusted malformed output.
+                repair_system = self.SYSTEM_PROMPT + " 上次结构化输出无效。重新生成严格符合字段约束的JSON，不输出解释或额外字段。"
+                reserve_model(self._settings.chat_model, repair_system + user_payload, output_tokens=256)
+                repaired = client.post('/chat/completions',
+                    headers={'Authorization': f'Bearer {self._settings.dashscope_api_key}'},
+                    json={'model':self._settings.chat_model,'messages':[
+                        {'role':'system','content':repair_system},{'role':'user','content':user_payload}],
+                        'response_format':{'type':'json_object'},'temperature':0,'max_completion_tokens':256})
+                repaired.raise_for_status()
+                record_usage(self._settings.chat_model,repaired.json())
+                intent = SearchIntent.model_validate(json.loads(repaired.json()['choices'][0]['message']['content']))
             intent.examplePictureIds = [
                 value for value in intent.examplePictureIds if value in allowed_picture_ids
             ]

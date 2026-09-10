@@ -1,3 +1,7 @@
+# Step 75：运行保护
+
+- 增加模型地址白名单、一次意图结构修复与图步数上限，详见 agent-service/STEP-75.md。
+
 # Step 74：追踪与指标
 
 - 增加OpenTelemetry安全追踪、Java关联日志、首段与操作耗时直方图，详见 agent-service/STEP-74.md。

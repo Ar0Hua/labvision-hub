@@ -45,9 +45,10 @@ class BaseExecutor:
 class LangGraphWorkflow:
     """Three-stage retrieval graph with per-user, per-conversation checkpoints."""
 
-    def __init__(self, executor: BaseExecutor, checkpointer: object) -> None:
+    def __init__(self, executor: BaseExecutor, checkpointer: object, max_steps: int = 6) -> None:
         self._executor = executor
         self._checkpointer = checkpointer
+        self._max_steps = max_steps
 
     def execute(
         self,
@@ -135,9 +136,9 @@ class LangGraphWorkflow:
         builder.add_edge("complete", END)
         return builder.compile(checkpointer=self._checkpointer)
 
-    @staticmethod
-    def _config(context: TaskContext) -> dict:
+    def _config(self, context: TaskContext) -> dict:
         return {
+            "recursion_limit": self._max_steps,
             "configurable": {
                 "thread_id": f"{context.userId}:{context.conversationId}",
             }
@@ -151,6 +152,7 @@ class RedisCheckpointWorkflow:
         self._executor = executor
         self._url = settings.checkpoint_redis_url
         self._ttl = settings.checkpoint_ttl_minutes
+        self._max_steps = settings.max_graph_steps
 
     def execute(
         self,
@@ -170,6 +172,6 @@ class RedisCheckpointWorkflow:
             ttl={"default_ttl": self._ttl, "refresh_on_read": True},
         ) as checkpointer:
             checkpointer.setup()
-            return LangGraphWorkflow(self._executor, checkpointer).execute(
+            return LangGraphWorkflow(self._executor, checkpointer, self._max_steps).execute(
                 context, search, authorize, check_active
             )

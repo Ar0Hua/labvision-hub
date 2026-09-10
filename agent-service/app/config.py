@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
@@ -35,13 +36,15 @@ class Settings:
     max_task_cost: str = "0"
     model_prices_json: str = "{}"
     image_token_reservation: int = 8192
+    max_graph_steps: int = 6
 
     @classmethod
     def from_env(cls) -> "Settings":
         secret = os.getenv("AGENT_INTERNAL_SECRET") or os.getenv("AGENT_SERVICE_SECRET", "")
         if len(secret) < 32:
             raise RuntimeError("AGENT_INTERNAL_SECRET must contain at least 32 characters")
-        return cls(
+        configured = cls(
+            max_graph_steps=max(4, min(20, int(os.getenv("AGENT_MAX_STEPS", "6")))),
             max_input_tokens=max(1024, min(1000000, int(os.getenv("AGENT_MAX_INPUT_TOKENS", "262144")))),
             max_task_cost=os.getenv("AGENT_MAX_TASK_COST", "0"),
             model_prices_json=os.getenv("AGENT_MODEL_PRICES_JSON", "{}"),
@@ -85,3 +88,16 @@ class Settings:
                 "AGENT_FEATURE_VERSION", "image-v1+text-v1+caption-v1"
             ).strip(),
         )
+        allowed = {value.strip().lower() for value in os.getenv(
+            "AGENT_MODEL_ALLOWED_HOSTS", "dashscope.aliyuncs.com").split(',') if value.strip()}
+        validate_model_endpoints((configured.dashscope_base_url, configured.image_embedding_base_url), allowed)
+        return configured
+
+
+def validate_model_endpoints(endpoints, allowed_hosts):
+    """Operator-managed allowlist, never accepted from user prompts or task JSON."""
+    for endpoint in endpoints:
+        parsed = urlsplit(endpoint)
+        if (parsed.scheme != 'https' or parsed.hostname not in allowed_hosts or parsed.username or parsed.password
+                or parsed.query or parsed.fragment or parsed.port not in (None,443)):
+            raise RuntimeError('model endpoint is not an approved HTTPS provider')
