@@ -7,6 +7,7 @@ import httpx
 
 from app.config import Settings
 from app.runtime.budget import reserve, reserve_model, record_usage
+from app.observability.tracing import traced
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class SemanticRetriever:
     def enabled(self) -> bool:
         return bool(self._settings.dashscope_api_key and self._settings.embedding_model)
 
+    @traced("retrieval.text_dense")
     def search(self, text: str, scope_key: str, limit: int = 20,
                filters: dict | None = None) -> list[str]:
         if not self.enabled:
@@ -93,6 +95,7 @@ class SemanticRetriever:
             if self._qdrant_client is None:
                 qdrant_client.close()
 
+    @traced("retrieval.image_example")
     def search_by_pictures(
         self, picture_ids: list[str], scope_key: str, limit: int = 20, filters: dict | None = None,
     ) -> list[str]:
@@ -155,6 +158,7 @@ class SemanticRetriever:
         """Use the same multimodal model as indexed pictures, not the metadata embedding."""
         return self._search_multimodal({"text":text[:500]}, scope_key, limit, filters)
 
+    @traced("retrieval.multimodal")
     def _search_multimodal(self, content: dict, scope_key, limit, filters):
         query_filter = self._filter(scope_key, filters)
         embedding = self._embedding_client or httpx.Client(
@@ -191,6 +195,7 @@ class SemanticRetriever:
             if self._qdrant_client is None:
                 qdrant.close()
 
+    @traced("retrieval.image_matrix")
     def picture_similarity_matrix(
         self, picture_ids: list[str], scope_key: str,
     ) -> PictureSimilarityMatrix:
@@ -215,6 +220,7 @@ class SemanticRetriever:
                 query_filter["must_not"] = [
                     {"key": "pictureId", "match": {"value": picture_id}}
                 ]
+                reserve()
                 response = qdrant_client.post(
                     f"/collections/{collection}/points/query",
                     headers=headers,

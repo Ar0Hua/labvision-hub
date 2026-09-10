@@ -6,6 +6,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from app.config import Settings
+from app.observability.tracing import traced
 from app.runtime.budget import reserve_model, record_usage
 
 
@@ -115,6 +116,7 @@ class IntentParser:
         self._settings = settings
         self._client = client
 
+    @traced("model.intent")
     def parse(
         self, query: str, previous_intent: dict | None = None,
         previous_result_ids: list[str] | None = None,

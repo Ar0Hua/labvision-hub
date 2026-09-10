@@ -19,6 +19,7 @@ from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
 from app.analysis.vision import VisionAnalyzer
 from app.observability.metrics import runtime_metrics
+from app.observability.tracing import traced, set_outcome
 
 
 class ExecutorUnavailable(RuntimeError):
@@ -80,6 +81,7 @@ class TaskRunner:
             settings.max_input_tokens, settings.max_task_cost, settings.model_prices_json, settings.image_token_reservation,
         )
 
+    @traced("agent.task")
     def run(self, signed: ServiceContext, token: str) -> None:
         budget = TaskBudget(self.max_tool_calls, self.max_model_calls, self.max_output_tokens)
         budget.usage = ModelUsageBudget.configured(self.max_input_tokens,self.max_task_cost,
@@ -108,6 +110,8 @@ class TaskRunner:
                 delta = remaining[offset:offset + 2048]
                 self.java.append_event(signed.task_id, token, "answer_delta",
                     json.dumps({"text": delta}, ensure_ascii=False, separators=(",", ":")))
+                if not published_answer:
+                    runtime_metrics.observe_operation('agent.first_answer', time.monotonic()-started)
                 published_answer += delta
         def failure_message(message: str) -> str:
             return (message + f"；失败阶段：{phase}。"
@@ -309,6 +313,7 @@ class TaskRunner:
                     error_message=failure_message("Agent 执行失败，请稍后重试"),
                 )
         finally:
+            set_outcome(outcome)
             runtime_metrics.observe_task(outcome, time.monotonic() - started, empty_result)
             active_budget.reset(budget_token)
             self.java.close()

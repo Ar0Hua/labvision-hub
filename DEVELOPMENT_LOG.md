@@ -1,3 +1,7 @@
+# Step 74：追踪与指标
+
+- 增加OpenTelemetry安全追踪、Java关联日志、首段与操作耗时直方图，详见 agent-service/STEP-74.md。
+
 # Step 73：完整结果卡片
 
 - 增加实时授权元数据和按需短期缩略图；安全边界见 agent-service/STEP-73.md。

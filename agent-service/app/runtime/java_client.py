@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from app.analysis.space_statistics import SpaceStatistics
 from app.config import Settings
 from app.runtime.budget import reserve
+from app.observability.tracing import traced, trace_headers
 
 
 class TemporaryInput(BaseModel):
@@ -201,11 +202,12 @@ class JavaTaskClient:
         if self._owns_client:
             self._client.close()
 
+    @traced("java.callback")
     def _request(self, method: str, path: str, token: str, **kwargs: Any) -> Any:
         if not path.endswith(("/events", "/state")):
             reserve()
         response = self._client.request(
-            method, path, headers={"Authorization": f"Bearer {token}"}, **kwargs
+            method, path, headers={"Authorization": f"Bearer {token}", **trace_headers()}, **kwargs
         )
         response.raise_for_status()
         try:

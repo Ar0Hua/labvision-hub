@@ -2,6 +2,7 @@ import json
 import httpx
 import re
 import time
+from app.observability.tracing import traced
 
 from app.config import Settings
 from app.runtime.budget import reserve_model, record_usage
@@ -108,6 +109,7 @@ class VisionAnalyzer:
             if self._client is None:
                 client.close()
 
+    @traced("model.vision_stream")
     def analyze_stream(self, query, pictures, emit, check_active):
         """Publish complete verified paragraphs while the provider is still generating."""
         from app.analysis.streaming import read_observations
@@ -147,6 +149,7 @@ class VisionAnalyzer:
             if self._client is None:
                 client.close()
 
+    @traced("model.vision_reduce")
     def summarize(self, query: str, observations: list[str], picture_ids: list[str]) -> str | None:
         """Reduce bounded batch observations without sending images again."""
         if not self.enabled or len(observations) < 2:

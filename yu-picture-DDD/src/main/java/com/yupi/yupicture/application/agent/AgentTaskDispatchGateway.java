@@ -19,6 +19,7 @@ import java.net.URI;
 import java.util.Objects;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class AgentTaskDispatchGateway {
     @Resource private AgentTaskMapper tasks;
     @Resource private AgentConversationMapper conversations;
@@ -41,6 +42,10 @@ public class AgentTaskDispatchGateway {
                 task.getRetryCount() == null ? 0 : task.getRetryCount());
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
+        String traceId=taskId.replace("-","");
+        String spanId=java.util.UUID.randomUUID().toString().replace("-","").substring(0,16);
+        headers.set("traceparent","00-"+traceId+"-"+spanId+"-01");
+        log.info("agent_dispatch trace_id={} span_id={} task_id={} attempt={}",traceId,spanId,taskId,task.getRetryCount());
         client.exchange(endpoint(taskId), HttpMethod.POST, new HttpEntity<Void>(headers), Void.class);
     }
 
