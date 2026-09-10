@@ -1,3 +1,8 @@
+# Step 81：P0交付清单
+
+- 汇总至Step80的P0代码与安全修补，更新迁移/配置手册；Python118项、golden8条、Java63项及Vite构建通过。
+- 真实环境联调、人工效果评测与性能/恢复验收尚未执行；详见 agent-service/IMPLEMENTATION_STATUS.md 和 STEP-81.md。
+
 # Step 80：迟到输出保护
 
 - 任务行锁内拒绝非RUNNING状态追加事件，覆盖取消竞争，详见 agent-service/STEP-80.md。

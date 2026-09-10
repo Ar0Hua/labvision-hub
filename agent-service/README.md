@@ -4,7 +4,7 @@
 
 ## 实施状态
 
-约定的只读 MVP 代码已经完成：包括权限感知混合检索、Qwen 视觉观察、LangGraph/Redis checkpoint、任务/SSE、索引 outbox/Worker、前端工作台、运行指标和离线评测。当前仍未部署服务、执行迁移或处理历史图片，详见 `IMPLEMENTATION_STATUS.md` 和 `DEPLOYMENT-RUNBOOK.md`。
+已补齐本轮核对的只读P0功能代码（最多20张图片MVP），包括权限检索、临时图、真实模型流式适配、部分成果保留、预算、追踪与回归门禁。代码回归通过不代表完整P0验收通过：尚未部署服务、执行迁移、回填历史图片或完成真实模型/中间件联调和效果压测。当前能力与边界以 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) 为准，部署步骤见 [DEPLOYMENT-RUNBOOK.md](DEPLOYMENT-RUNBOOK.md)。
 
 ## 已确认决策
 
