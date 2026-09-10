@@ -1,0 +1,10 @@
+[
+  {"queryId":"scope-revocation","intent":{"searchText":"实验"},"allowed":["1"],"expected":["1"],"pictures":[{"pictureId":"1","spaceId":"9","name":"实验图"},{"pictureId":"2","spaceId":"9","name":"不可见"}]},
+  {"queryId":"uploader","intent":{"searchText":"实验","uploaderId":"7"},"allowed":["1","2"],"expected":["1"],"pictures":[{"pictureId":"1","spaceId":"9","uploaderId":"7"},{"pictureId":"2","spaceId":"9","uploaderId":"8"}]},
+  {"queryId":"aspect","intent":{"searchText":"实验","minAspectRatio":1.5},"allowed":["1","2"],"expected":["2"],"pictures":[{"pictureId":"1","spaceId":"9","width":100,"height":200},{"pictureId":"2","spaceId":"9","width":200,"height":100}]},
+  {"queryId":"dark","intent":{"searchText":"实验","brightness":"dark"},"allowed":["1","2"],"expected":["1"],"pictures":[{"pictureId":"1","spaceId":"9","features":{"brightnessScore":20}},{"pictureId":"2","spaceId":"9","features":{"brightnessScore":230}}]},
+  {"queryId":"color","intent":{"searchText":"实验","targetColor":"#ffffff","colorTolerance":10},"allowed":["1","2"],"expected":["2"],"pictures":[{"pictureId":"1","spaceId":"9","color":"#000000"},{"pictureId":"2","spaceId":"9","color":"#ffffff"}]},
+  {"queryId":"chronological","intent":{"searchText":"实验","sort":"oldest"},"allowed":["1","2"],"expected":["2","1"],"pictures":[{"pictureId":"1","spaceId":"9","createdAt":"2026-01-01T00:00:00Z"},{"pictureId":"2","spaceId":"9","createdAt":"2025-01-01T00:00:00Z"}]},
+  {"queryId":"exclude","intent":{"searchText":"实验","excludePictureIds":["1"]},"allowed":["1","2"],"expected":["2"],"pictures":[{"pictureId":"1","spaceId":"9"},{"pictureId":"2","spaceId":"9"}]},
+  {"queryId":"empty","intent":{"searchText":"实验"},"allowed":[],"expected":[],"pictures":[{"pictureId":"1","spaceId":"9"}]}
+]

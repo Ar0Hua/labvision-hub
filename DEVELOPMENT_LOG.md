@@ -1,3 +1,7 @@
+# Step 77：回归门禁
+
+- 增加8条版本化contract golden和Python/Java/Vue GitHub Actions流水线，不部署或调用付费模型，详见 agent-service/STEP-77.md。
+
 # Step 76：调用可靠性
 
 - 默认外部HTTP链路增加有界熔断及仅连接失败重试，详见 agent-service/STEP-76.md。
