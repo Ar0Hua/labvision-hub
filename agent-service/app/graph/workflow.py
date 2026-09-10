@@ -61,6 +61,14 @@ class LangGraphWorkflow:
         config = self._config(context)
         saved = graph.get_state(config)
         resume = bool(saved.next and saved.values.get("task_id") == context.taskId)
+        if resume and 'retrieve' not in saved.next:
+            ids = list(dict.fromkeys(item['pictureId'] for item in saved.values.get('citations',[]) if item.get('pictureId')))
+            current = []
+            for offset in range(0,len(ids),20):
+                check_active()
+                current.extend(p.pictureId for p in authorize(ids[offset:offset+20]))
+            if set(current) != set(ids):
+                raise ValueError('checkpoint citations are no longer authorized')
         output = graph.invoke(
             None if resume else {"task_id": context.taskId, "query": context.query}, config,
         )

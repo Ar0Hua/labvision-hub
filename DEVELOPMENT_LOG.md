@@ -1,3 +1,7 @@
+# Step 79：恢复与历史安全复核
+
+- checkpoint、引用发布、答案追加和历史回放均复核引用图片，详见 agent-service/STEP-79.md。
+
 # Step 78：反馈离线复核
 
 - JSON报告附带授权反馈，离线CLI生成去敏复核草案；人工标注与线上训练隔离，详见 agent-service/STEP-78.md。

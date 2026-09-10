@@ -22,6 +22,27 @@ public class AgentTaskEventService {
     @Resource private AgentConversationService conversations;
     @Resource private AgentMessageMapper messages;
     @Resource private AgentAccessService access;
+    @Resource private AgentPictureService pictures;
+
+    public void requireStoredCitationAccess(String taskId,String conversationId,User user) {
+        List<String> payloads=mapper.citationPayloads(taskId);
+        if(payloads!=null) requireCitationAccess(conversationId,payloads,user);
+    }
+
+    public void requireCitationAccess(String conversationId,List<String> payloads,User user) {
+        if(payloads.size()>200) throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"引用历史超出安全复核上限");
+        Set<Long> ids=new LinkedHashSet<>();
+        for(String payload:payloads) {
+            try {
+                String value=JSONUtil.parseObj(payload).getStr("pictureId");
+                if(value==null || !value.matches("[1-9][0-9]{0,18}")) throw new IllegalArgumentException();
+                ids.add(Long.valueOf(value));
+            } catch(RuntimeException e) { throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"引用不可访问"); }
+        }
+        List<Long> values=new ArrayList<>(ids);
+        for(int offset=0;offset<values.size();offset+=20)
+            pictures.details(conversationId,values.subList(offset,Math.min(offset+20,values.size())),user);
+    }
 
     /** 仅供受信任的应用服务调用；内部 HTTP 写入口将在服务认证步骤提供。 */
     public AgentTaskEvent append(String taskId, String type, String payloadJson) {
@@ -52,6 +73,7 @@ public class AgentTaskEventService {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"任务输入不可访问");
         List<Long> compared=AgentExplicitScopes.comparison(input.getContent());
         if(!compared.isEmpty()) access.resolve(user,compared);
+        requireStoredCitationAccess(taskId,task.getConversationId(),user);
         long after=afterEventId==null?0:afterEventId;
         int limit=requestedLimit==null?100:requestedLimit;
         if(after<0||limit<1||limit>200) throw new BusinessException(ErrorCode.PARAMS_ERROR,"事件游标或数量非法");

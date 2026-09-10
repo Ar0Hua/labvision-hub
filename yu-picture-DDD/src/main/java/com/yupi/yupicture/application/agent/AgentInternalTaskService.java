@@ -63,7 +63,14 @@ public class AgentInternalTaskService {
     @Transactional(rollbackFor=Exception.class)
     public void appendEvent(String bearerToken,String taskId,String type,String payload) {
         tasks.lockById(taskId);
-        context(bearerToken,taskId);
+        Map<String,Object> taskContext=context(bearerToken,taskId);
+        if("citation".equals(type) || "answer_delta".equals(type)) {
+            User user=new User();user.setId(Long.valueOf(taskContext.get("userId").toString()));
+            user.setUserRole((String)taskContext.get("userRole"));
+            String conversationId=taskContext.get("conversationId").toString();
+            if("citation".equals(type)) events.requireCitationAccess(conversationId,Collections.singletonList(payload),user);
+            else events.requireStoredCitationAccess(taskId,conversationId,user);
+        }
         events.append(taskId,type,payload);
     }
 
