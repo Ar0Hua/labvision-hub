@@ -175,7 +175,12 @@ class PictureIndexWorker:
                 if self._settings.qdrant_api_key else {})
 
     def _payload(self, job: IndexJob, extracted, caption: str, ocr: str) -> dict:
+        from app.retrieval.visual_filters import rgb
+        channels = rgb(job.picColor)
         return {
+            "colorR": channels[0] if channels else None,
+            "colorG": channels[1] if channels else None,
+            "colorB": channels[2] if channels else None,
             "pictureId": job.pictureId, "scopeKey": job.scopeKey,
             "spaceId": job.spaceId, "userId": job.userId,
             "reviewStatus": job.reviewStatus, "isDelete": 0,

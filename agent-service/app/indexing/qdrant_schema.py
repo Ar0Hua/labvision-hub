@@ -49,6 +49,7 @@ class QdrantSchemaManager:
             "category": "keyword", "picFormat": "keyword", "createdAtEpoch": "integer",
             "sourceUpdatedAtEpoch": "integer", "contentHash": "keyword", "phash": "keyword",
             "aspectRatio": "float",
+            "brightnessScore": "float", "colorR": "integer", "colorG": "integer", "colorB": "integer",
             "picWidth": "integer", "picHeight": "integer", "picSize": "integer",
         }
         for field, schema in payload_indexes.items():

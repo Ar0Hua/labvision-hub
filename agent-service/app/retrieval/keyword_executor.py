@@ -6,6 +6,7 @@ from app.runtime.java_client import PictureCandidate, TaskContext
 from app.retrieval.intent import IntentParser
 from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.ordering import order_candidates
+from app.retrieval.visual_filters import matches_visual
 from app.retrieval.semantic import SemanticRetriever
 
 
@@ -56,6 +57,9 @@ class KeywordSearchExecutor:
             "uploaderId": intent.uploaderId,
             "minAspectRatio": intent.minAspectRatio,
             "maxAspectRatio": intent.maxAspectRatio,
+            "targetColor": intent.targetColor,
+            "colorTolerance": intent.colorTolerance,
+            "brightness": intent.brightness,
             "sort": intent.sort,
             "excludePictureIds": intent.excludePictureIds,
         }
@@ -122,6 +126,7 @@ class KeywordSearchExecutor:
                           and (intent.maxAspectRatio is None or p.width / p.height <= intent.maxAspectRatio)]
         check_active()
         candidates = order_candidates(candidates, intent.sort)
+        candidates = [p for p in candidates if matches_visual(p, intent)]
         seen_hashes = set()
         visible = []
         collapsed = 0
@@ -150,6 +155,10 @@ class KeywordSearchExecutor:
                 candidate_count=0,
             )
         lines = [f"在当前会话可访问范围内找到 {len(candidates)} 项相关视觉资产："]
+        if intent.targetColor:
+            lines.append(f"颜色条件：主色 RGB 每通道距 {intent.targetColor} 不超过 {intent.colorTolerance}；不是感知色差分数。")
+        if intent.brightness:
+            lines.append("亮度条件基于当前版本索引图像灰度均值：偏暗<50、正常50～210、偏亮>210；缺失或过期特征不满足条件。")
         if intent.sort != "relevance":
             direction = "从新到旧" if intent.sort == "newest" else "从旧到新"
             lines.append(f"排序：本次融合候选（最多 50 项）内按上传时间{direction}；"

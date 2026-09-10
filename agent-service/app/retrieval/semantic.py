@@ -259,6 +259,8 @@ class SemanticRetriever:
             ratio_range["lte"] = values["maxAspectRatio"]
         if ratio_range:
             must.append({"key": "aspectRatio", "range": ratio_range})
+        from app.retrieval.visual_filters import vector_conditions
+        must.extend(vector_conditions(values))
         result = {"must": must}
         if values.get("excludePictureIds"):
             result["must_not"] = [{

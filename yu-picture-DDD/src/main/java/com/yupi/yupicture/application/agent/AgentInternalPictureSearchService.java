@@ -24,6 +24,7 @@ public class AgentInternalPictureSearchService {
         validate(request);
         int limit = request.getLimit() == null ? 20 : request.getLimit();
         QueryWrapper<Picture> query = new QueryWrapper<>();
+        AgentVisualSearchFilters.apply(query, request);
         query.select("id", "spaceId", "name", "introduction", "category", "tags",
                         "picSize", "picWidth", "picHeight", "picFormat", "createTime", "updateTime")
                 .eq("isDelete", 0);
@@ -103,6 +104,7 @@ public class AgentInternalPictureSearchService {
         if (request.getMinAspectRatio() != null && request.getMaxAspectRatio() != null
                 && request.getMinAspectRatio() > request.getMaxAspectRatio()) invalid();
         check(trim(request.getSearchText()), 100);
+        AgentVisualSearchFilters.validate(request);
         check(trim(request.getCategory()), 32);
         if (request.getTags() != null) {
             if (request.getTags().size() > 5) invalid();

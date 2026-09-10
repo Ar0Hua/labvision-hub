@@ -29,7 +29,7 @@ class QdrantSchemaTests(unittest.TestCase):
                          ("GET", "/collections/labvision_picture_v1"))
         self.assertEqual((requests[1].method, requests[1].url.path),
                          ("PUT", "/collections/labvision_picture_v1"))
-        self.assertEqual(len(requests), 18)
+        self.assertEqual(len(requests), 22)
         self.assertTrue(any(json.loads(r.content).get("field_name") == "aspectRatio" for r in requests if r.content))
         self.assertTrue(all(r.headers["api-key"] == "secret" for r in requests))
 

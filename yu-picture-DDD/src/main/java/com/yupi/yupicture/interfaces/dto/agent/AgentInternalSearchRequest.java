@@ -19,4 +19,7 @@ public class AgentInternalSearchRequest {
     private String uploaderId;
     private Double minAspectRatio;
     private Double maxAspectRatio;
+    private String targetColor;
+    private Integer colorTolerance;
+    private String brightness;
 }
