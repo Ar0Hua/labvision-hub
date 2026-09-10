@@ -5,11 +5,14 @@
         <div><strong>视觉资产 Agent</strong><small>{{ scopeLabel }}</small></div>
         <a-button type="primary" size="small" @click="createConversation">新会话</a-button>
       </div>
+      <div style="display: flex; gap: 12px; margin: 8px 0">
+        <a href="/agent?scope=all">全部授权空间</a><a href="/agent">仅公共图库</a>
+      </div>
       <a-spin :spinning="loadingConversations">
         <button v-for="item in conversations" :key="item.conversationId" class="conversation-item"
           :class="{ active: item.conversationId === activeConversationId }"
           @click="selectConversation(item.conversationId)">
-          <span>{{ item.spaceId ? `空间 ${item.spaceId}` : '公共图库' }}</span>
+          <span>{{ item.allSpaces ? '全部授权空间快照' : item.spaceId ? `空间 ${item.spaceId}` : '公共图库' }}</span>
           <small>{{ shortId(item.conversationId) }} · {{ formatTime(item.updateTime) }}</small>
         </button>
         <a-empty v-if="!loadingConversations && !conversations.length" description="暂无会话" />
@@ -112,7 +115,8 @@ const messageContainer = ref<HTMLElement>()
 let disconnect: (() => void) | undefined
 
 const requestedSpaceId = computed(() => typeof route.query.spaceId === 'string' ? route.query.spaceId : undefined)
-const scopeLabel = computed(() => requestedSpaceId.value ? `空间 ${requestedSpaceId.value}` : '公共图库范围')
+const allSpaces = computed(() => !requestedSpaceId.value && route.query.scope === 'all')
+const scopeLabel = computed(() => allSpaces.value ? '创建时全部授权空间＋已审核公共图（最多50空间，逐次复核）' : requestedSpaceId.value ? `空间 ${requestedSpaceId.value}` : '公共图库范围')
 const activeTurn = computed(() => [...turns.value].reverse().find((turn) => ['PENDING', 'RUNNING'].includes(turn.task.status)))
 const activeTask = computed(() => activeTurn.value?.task)
 onMounted(loadConversations)
@@ -182,7 +186,7 @@ async function loadConversations() {
   try {
     const response = await listAgentConversations()
     if (response.data.code !== 0) throw new Error(response.data.message || '加载失败')
-    conversations.value = (response.data.data || []).filter((item) => (item.spaceId || undefined) === requestedSpaceId.value)
+    conversations.value = (response.data.data || []).filter((item) => Boolean(item.allSpaces) === allSpaces.value && (item.spaceId || undefined) === requestedSpaceId.value)
     if (conversations.value[0]) await selectConversation(conversations.value[0].conversationId)
   } catch (error) { showError(error, '会话加载失败') }
   finally { loadingConversations.value = false }
@@ -190,10 +194,10 @@ async function loadConversations() {
 
 async function createConversation() {
   try {
-    const response = await createAgentConversation(requestedSpaceId.value)
+    const response = await createAgentConversation(requestedSpaceId.value, allSpaces.value)
     const id = response.data.data?.conversationId
     if (response.data.code !== 0 || !id) throw new Error(response.data.message || '创建失败')
-    conversations.value.unshift({ conversationId: id, spaceId: requestedSpaceId.value, status: 'ACTIVE' })
+    conversations.value.unshift({ conversationId: id, spaceId: requestedSpaceId.value, allSpaces: allSpaces.value, status: 'ACTIVE' })
     await selectConversation(id)
   } catch (error) { showError(error, '会话创建失败') }
 }

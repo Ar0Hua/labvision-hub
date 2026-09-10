@@ -132,7 +132,10 @@ class TaskRunner:
                 signed.task_id, token, "tool_start",
                 json.dumps({"tool": tool_name}, separators=(",", ":")),
             )
-            if is_space_comparison:
+            if context.allSpaces and is_space_statistics and not is_space_comparison:
+                result = ExecutionResult("当前会话为全范围检索。空间统计请进入具体空间，或明确输入‘比较空间 ID1、ID2’；不会用公共图库统计冒充全范围统计。", [], 0)
+                tool_result = {"tool": "scope_clarification"}
+            elif is_space_comparison:
                 summaries = self.java.get_space_comparison(signed.task_id, token)
                 lines = ["已对明确指定且当前有权限的空间完成比较：", "",
                          "| 空间 ID | 图片数量 | 已用字节 |", "|---|---:|---:|"]
@@ -282,6 +285,8 @@ class TaskRunner:
         )
         try:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
+            if context.allSpaces:
+                scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
             matrix = self.semantic.picture_similarity_matrix(picture_ids, scope_key)
             check_active()
             analysis = PictureGroupAnalyzer.analyze_similarity(pictures, matrix)

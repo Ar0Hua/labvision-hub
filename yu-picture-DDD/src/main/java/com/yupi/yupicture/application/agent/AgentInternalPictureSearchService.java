@@ -29,7 +29,13 @@ public class AgentInternalPictureSearchService {
                         "picSize", "picWidth", "picHeight", "picFormat", "createTime", "updateTime")
                 .eq("isDelete", 0);
         Object spaceId = context.get("spaceId");
-        if (spaceId == null) {
+        if (Boolean.TRUE.equals(context.get("allSpaces"))) {
+            @SuppressWarnings("unchecked") List<String> allowed=(List<String>)context.get("allowedSpaceIds");
+            query.and(scope -> {
+                scope.and(publicScope -> publicScope.isNull("spaceId").eq("reviewStatus",1));
+                if(allowed!=null && !allowed.isEmpty()) scope.or().in("spaceId",allowed);
+            });
+        } else if (spaceId == null) {
             query.isNull("spaceId").eq("reviewStatus", 1);
         } else {
             query.eq("spaceId", Long.valueOf(spaceId.toString()));

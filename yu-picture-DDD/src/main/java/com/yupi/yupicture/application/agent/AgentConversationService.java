@@ -27,7 +27,12 @@ public class AgentConversationService {
     }
 
     public String create(User user, Long spaceId) {
+        return create(user,spaceId,false);
+    }
+
+    public String create(User user, Long spaceId, boolean allSpaces) {
         requireUser(user);
+        if(allSpaces && spaceId!=null) throw new BusinessException(ErrorCode.PARAMS_ERROR,"全范围与指定空间不能同时选择");
         if (spaceId != null) {
             access.resolve(user, java.util.Collections.singletonList(spaceId));
         }
@@ -37,6 +42,8 @@ public class AgentConversationService {
         row.setUserId(user.getId());
         row.setStatus("ACTIVE");
         row.setSpaceId(spaceId);
+        row.setAllSpaces(allSpaces);
+        if(allSpaces) row.setScopeSpaceIdsJson(cn.hutool.json.JSONUtil.toJsonStr(access.allViewableSpaceIds(user)));
         if (mapper.insert(row) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "会话创建失败");
         }
@@ -53,6 +60,7 @@ public class AgentConversationService {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "会话不可访问或已过期");
         }
         if (row.getSpaceId() != null) access.resolve(user, java.util.Collections.singletonList(row.getSpaceId()));
+        if (Boolean.TRUE.equals(row.getAllSpaces())) access.resolve(user,snapshot(row));
         return row;
     }
 
@@ -68,6 +76,10 @@ public class AgentConversationService {
 
     public void requirePictureScope(String id, User user, Long pictureSpaceId) {
         AgentConversation row = requireOwner(id, user);
+        if (Boolean.TRUE.equals(row.getAllSpaces())) {
+            if(pictureSpaceId==null || snapshot(row).contains(pictureSpaceId)) return;
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"图片不在会话授权快照内，请新建会话");
+        }
         if (!Objects.equals(row.getSpaceId(), pictureSpaceId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "图片不在当前会话范围内");
         }
@@ -76,6 +88,16 @@ public class AgentConversationService {
     private void requireUser(User user) {
         if (user == null || user.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+    }
+
+    public static List<Long> snapshot(AgentConversation row) {
+        try {
+            List<Long> ids=cn.hutool.json.JSONUtil.toList(row.getScopeSpaceIdsJson(),Long.class);
+            if(ids==null || ids.size()>50 || ids.stream().anyMatch(id->id==null || id<=0)) throw new IllegalArgumentException();
+            return ids;
+        } catch(RuntimeException error) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"会话范围不可用，请新建会话");
         }
     }
 }

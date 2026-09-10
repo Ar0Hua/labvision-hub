@@ -8,6 +8,7 @@ import java.util.Date;
 public class AgentConversationVO {
     private String conversationId;
     private String spaceId;
+    private Boolean allSpaces;
     private String status;
     private Date createTime;
     private Date updateTime;
@@ -16,6 +17,7 @@ public class AgentConversationVO {
         AgentConversationVO vo = new AgentConversationVO();
         vo.setConversationId(row.getId());
         vo.setSpaceId(row.getSpaceId() == null ? null : row.getSpaceId().toString());
+        vo.setAllSpaces(Boolean.TRUE.equals(row.getAllSpaces()));
         vo.setStatus(row.getStatus());
         vo.setCreateTime(row.getCreateTime());
         vo.setUpdateTime(row.getUpdateTime());

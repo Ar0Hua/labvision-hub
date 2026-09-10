@@ -32,6 +32,7 @@ public class AgentInternalPictureVisionService {
         Map<String, Object> context = internalTasks.context(bearerToken, taskId);
         User user = new User();
         user.setId(Long.valueOf(context.get("userId").toString()));
+        user.setUserRole((String)context.get("userRole"));
         List<Map<String, Object>> metadata = authorizedPictures.details(
                 context.get("conversationId").toString(), pictureIds, user);
         List<Map<String, Object>> result = new ArrayList<>();

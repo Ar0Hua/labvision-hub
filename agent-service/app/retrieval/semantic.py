@@ -162,7 +162,7 @@ class SemanticRetriever:
             collection = quote(self._settings.qdrant_collection, safe="")
             for picture_id in selected:
                 query_filter = self._filter(scope_key)
-                query_filter["must"].append(
+                query_filter.setdefault("must", []).append(
                     {"key": "pictureId", "match": {"any": selected}}
                 )
                 query_filter["must_not"] = [
@@ -211,6 +211,11 @@ class SemanticRetriever:
 
     @staticmethod
     def _validate_similarity_request(picture_ids: list[str], scope_key: str) -> None:
+        if isinstance(scope_key, list):
+            SemanticRetriever._filter(scope_key)
+            for key in scope_key:
+                SemanticRetriever._validate_similarity_request(picture_ids, key)
+            return
         if not 2 <= len(picture_ids) <= 20 or len(set(picture_ids)) != len(picture_ids):
             raise ValueError("picture similarity requires 2 to 20 unique picture IDs")
         if any(not value.isdigit() or not 1 <= int(value) <= 9223372036854775807
@@ -224,6 +229,13 @@ class SemanticRetriever:
     @staticmethod
     def _filter(scope_key: str, filters: dict | None = None) -> dict:
         values = filters or {}
+        if isinstance(scope_key,list):
+            if not scope_key or len(scope_key)>51 or len(set(scope_key))!=len(scope_key):
+                raise ValueError("invalid authorized scope list")
+            for key in scope_key:
+                if key!="public" and (not key.startswith("space:") or not key[6:].isdigit() or int(key[6:])<1):
+                    raise ValueError("invalid scope key")
+            return {"should":[SemanticRetriever._filter(key,values) for key in scope_key]}
         must = [
             {"key": "scopeKey", "match": {"value": scope_key}},
             {"key": "isDelete", "match": {"value": 0}},

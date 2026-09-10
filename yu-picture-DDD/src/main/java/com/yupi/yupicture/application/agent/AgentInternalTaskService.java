@@ -43,6 +43,12 @@ public class AgentInternalTaskService {
             access.resolve(user,Collections.singletonList(conversation.getSpaceId()));
         }
         Map<String,Object> result=new LinkedHashMap<>();
+        boolean allSpaces=Boolean.TRUE.equals(conversation.getAllSpaces());
+        List<Long> scopeIds=allSpaces?AgentConversationService.snapshot(conversation):Collections.emptyList();
+        if(allSpaces) access.resolve(user,scopeIds);
+        result.put("allSpaces",allSpaces);
+        result.put("allowedSpaceIds",scopeIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.toList()));
+        result.put("userRole",user.getUserRole());
         result.put("taskId",taskId);
         result.put("conversationId",task.getConversationId());
         result.put("userId",task.getUserId().toString());

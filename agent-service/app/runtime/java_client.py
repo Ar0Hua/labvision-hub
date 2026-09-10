@@ -16,6 +16,9 @@ class TaskContext(BaseModel):
     conversationId: str
     userId: str
     spaceId: str | None
+    allSpaces: bool = False
+    allowedSpaceIds: list[str] = Field(default_factory=list, max_length=50)
+    userRole: str | None = None
     query: str
     examplePictureIds: list[str] = Field(default_factory=list, max_length=20)
     status: str

@@ -75,6 +75,8 @@ class KeywordSearchExecutor:
         channels = {"keyword": [picture.pictureId for picture in keyword]}
         if self._semantic and self._semantic.enabled:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
+            if context.allSpaces:
+                scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
             try:
                 vector_ids = self._semantic.search(intent.searchText, scope_key, 20, filters)
                 check_active()

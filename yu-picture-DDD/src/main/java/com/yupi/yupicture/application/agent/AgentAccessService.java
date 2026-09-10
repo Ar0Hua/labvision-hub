@@ -18,6 +18,22 @@ public class AgentAccessService {
     private SpaceRepository spaceRepository;
     @Resource
     private SpaceUserAuthManager authManager;
+    @Resource private com.yupi.yupicture.infrastructure.mapper.AgentScopeCandidatesMapper scopeCandidates;
+
+    public List<Long> allViewableSpaceIds(User user) {
+        if (user==null || user.getId()==null) throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        List<Long> candidates=scopeCandidates.candidates(user.getId(),user.isAdmin());
+        if (candidates.size()>500) throw new BusinessException(ErrorCode.PARAMS_ERROR,"空间数量超出全范围查询上限，请选择具体空间");
+        List<Long> result=new ArrayList<>();
+        for (Long id:candidates) {
+            Space space=spaceRepository.getById(id);
+            if(space==null) continue;
+            List<String> granted=authManager.getPermissionList(space,user);
+            if(granted!=null && granted.contains(SpaceUserPermissionConstant.PICTURE_VIEW)) result.add(id);
+        }
+        if(result.size()>50) throw new BusinessException(ErrorCode.PARAMS_ERROR,"全范围会话最多支持50个授权空间，请选择具体空间");
+        return result;
+    }
 
     public Map<String, Object> resolve(User user, List<Long> spaceIds) {
         if (user == null || user.getId() == null) {

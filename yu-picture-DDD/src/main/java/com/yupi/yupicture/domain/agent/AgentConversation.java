@@ -10,6 +10,8 @@ public class AgentConversation {
  private Long userId;
  private String status;
  private Long spaceId;
+ private Boolean allSpaces;
+ private String scopeSpaceIdsJson;
  private Date createTime;
  private Date updateTime;
 }

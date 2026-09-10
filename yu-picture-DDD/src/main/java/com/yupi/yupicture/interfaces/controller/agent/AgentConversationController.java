@@ -30,7 +30,8 @@ public class AgentConversationController {
     public BaseResponse<Map<String, String>> create(
             @RequestBody(required = false) AgentConversationCreateRequest body, HttpServletRequest request) {
         return ResultUtils.success(Collections.singletonMap("conversationId",
-                conversations.create(users.getLoginUser(request), body == null ? null : body.getSpaceId())));
+                conversations.create(users.getLoginUser(request), body == null ? null : body.getSpaceId(),
+                        body != null && Boolean.TRUE.equals(body.getAllSpaces()))));
     }
 
     @GetMapping
