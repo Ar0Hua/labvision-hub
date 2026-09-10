@@ -1,3 +1,7 @@
+# Step 78：反馈离线复核
+
+- JSON报告附带授权反馈，离线CLI生成去敏复核草案；人工标注与线上训练隔离，详见 agent-service/STEP-78.md。
+
 # Step 77：回归门禁
 
 - 增加8条版本化contract golden和Python/Java/Vue GitHub Actions流水线，不部署或调用付费模型，详见 agent-service/STEP-77.md。

@@ -194,6 +194,7 @@ class TaskRunner:
                     f"- 分类：{picture.category or '未分类'}",
                     f"- 格式：{picture.format or '未知'}",
                     f"- 分辨率：{picture.width or '未知'} × {picture.height or '未知'}",
+                    f"- 宽高比：{round(picture.width/picture.height,4) if picture.width and picture.height and picture.height>0 else '未知'}",
                     f"- 大小：{picture.size if picture.size is not None else '未知'} 字节",
                     f"- 标签：{picture.tags or '无'}",
                     f"- 上传人 ID：{picture.uploaderId or '未知'}；上传时间：{picture.createdAt or '未知'}",

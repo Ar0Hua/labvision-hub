@@ -196,11 +196,15 @@ async function exportReport(turn: Turn, format: 'md' | 'json') {
       if (ids.some(id => !allowed.has(id))) throw new Error('部分图片当前不可访问')
     }
     const scrub = (value: string) => value.replace(/https?:\/\/[^\s<>]+/gi, '[外部地址已移除]')
+    const feedbackResponse = await request(`/api/agent/tasks/${turn.task.taskId}/feedback`, { method: 'GET' })
+    if (feedbackResponse.data.code !== 0) throw new Error('反馈记录当前不可访问')
     const report = {
       version: 'labvision-report-v1', taskId: turn.task.taskId,
       conversationId: turn.task.conversationId, exportedAt: new Date().toISOString(),
       taskCreatedAt: turn.task.createTime, scope: scopeLabel.value,
       query: scrub(turn.query), answer: scrub(turn.answer),
+      feedback: (feedbackResponse.data.data || []).map((item: { pictureId: string; label: string }) =>
+        ({ pictureId: item.pictureId, label: item.label })),
       citations: turn.citations.map(c => ({ pictureId: c.pictureId, name: scrub(c.name || ''),
         category: scrub(c.category || ''), matchLevel: c.matchLevel,
         scoreBreakdown: c.scoreBreakdown })),
