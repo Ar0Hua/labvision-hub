@@ -6,7 +6,7 @@ from urllib.parse import quote
 import httpx
 
 from app.config import Settings
-from app.runtime.budget import reserve
+from app.runtime.budget import reserve, reserve_model, record_usage
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class SemanticRetriever:
             timeout=self._settings.qdrant_timeout_seconds,
         )
         try:
-            reserve(model=True)
+            reserve_model(self._settings.embedding_model, text)
             embedding_response = embedding_client.post(
                 "/embeddings",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
@@ -57,6 +57,7 @@ class SemanticRetriever:
                 },
             )
             embedding_response.raise_for_status()
+            record_usage(self._settings.embedding_model, embedding_response.json())
             vector = embedding_response.json()["data"][0]["embedding"]
             if not isinstance(vector, list) or not vector:
                 raise ValueError("invalid embedding")

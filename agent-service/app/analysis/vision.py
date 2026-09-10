@@ -3,7 +3,7 @@ import httpx
 import re
 
 from app.config import Settings
-from app.runtime.budget import reserve
+from app.runtime.budget import reserve_model, record_usage
 from app.runtime.java_client import VisionInput
 
 
@@ -50,7 +50,7 @@ class VisionAnalyzer:
             timeout=self._settings.model_timeout_seconds,
         )
         try:
-            reserve(model=True, output_tokens=800)
+            reserve_model(self._settings.vision_model, text, pictures=len(selected), output_tokens=800)
             response = client.post(
                 "/chat/completions",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
@@ -64,6 +64,7 @@ class VisionAnalyzer:
                 },
             )
             response.raise_for_status()
+            record_usage(self._settings.vision_model, response.json())
             answer = response.json()["choices"][0]["message"]["content"]
             if not isinstance(answer, str) or not answer.strip():
                 return None
@@ -87,7 +88,8 @@ class VisionAnalyzer:
             base_url=self._settings.dashscope_base_url,
             timeout=self._settings.model_timeout_seconds)
         try:
-            reserve(model=True, output_tokens=1000)
+            reserve_model(self._settings.chat_model, self.SYSTEM_PROMPT + query[:500] + " ".join(picture_ids[:20])
+                          + " ".join(value[:1200] for value in observations[:20]), output_tokens=1000)
             response = client.post(
                 "/chat/completions",
                 headers={"Authorization": f"Bearer {self._settings.dashscope_api_key}"},
@@ -107,6 +109,7 @@ class VisionAnalyzer:
                     "max_completion_tokens": 1000,
                 })
             response.raise_for_status()
+            record_usage(self._settings.chat_model, response.json())
             answer = response.json()["choices"][0]["message"]["content"]
             if not isinstance(answer, str):
                 return None

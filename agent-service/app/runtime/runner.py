@@ -5,6 +5,7 @@ from typing import Protocol
 
 from app.config import Settings
 from app.runtime.budget import TaskBudget, BudgetExceeded, active_budget
+from app.runtime.model_usage import ModelUsageBudget
 from app.runtime.java_client import JavaTaskClient, PictureCandidate, TaskContext
 from app.retrieval.keyword_executor import (
     AuthorizePictures, CheckActive, ExecutionResult, KeywordSearchExecutor, SearchPictures,
@@ -58,9 +59,15 @@ class TaskRunner:
     max_tool_calls: int = 100
     max_model_calls: int = 10
     max_output_tokens: int = 8000
+    max_input_tokens: int = 262144
+    max_task_cost: str = "0"
+    model_prices_json: str = "{}"
+    image_token_reservation: int = 8192
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
+        ModelUsageBudget.configured(settings.max_input_tokens, settings.max_task_cost,
+                                    settings.model_prices_json, settings.image_token_reservation)
         semantic = SemanticRetriever(settings)
         executor = KeywordSearchExecutor(IntentParser(settings), semantic)
         return cls(
@@ -70,10 +77,13 @@ class TaskRunner:
             settings.task_timeout_seconds,
             semantic,
             settings.max_tool_calls, settings.max_model_calls, settings.max_output_tokens,
+            settings.max_input_tokens, settings.max_task_cost, settings.model_prices_json, settings.image_token_reservation,
         )
 
     def run(self, signed: ServiceContext, token: str) -> None:
         budget = TaskBudget(self.max_tool_calls, self.max_model_calls, self.max_output_tokens)
+        budget.usage = ModelUsageBudget.configured(self.max_input_tokens,self.max_task_cost,
+                                                 self.model_prices_json,self.image_token_reservation)
         budget_token = active_budget.set(budget)
         running = False
         started = time.monotonic()
@@ -81,6 +91,7 @@ class TaskRunner:
         empty_result = False
         published_answer = ""
         phase = "INITIALIZING"
+        usage_written = False
         deadline = started + self.timeout_seconds
         def check_active() -> None:
             budget.check()
@@ -101,6 +112,16 @@ class TaskRunner:
         def failure_message(message: str) -> str:
             return (message + f"；失败阶段：{phase}。"
                     + ("已保留此前完成的回答和引用；重试将重新校验权限。" if published_answer else "尚无可展示成果。"))
+        def publish_usage():
+            nonlocal usage_written
+            if usage_written or not budget.models:
+                return
+            try:
+                self.java.append_event(signed.task_id, token, "tool_result",
+                    json.dumps({"tool":"model_usage","usage":budget.usage.snapshot()},separators=(",", ":")))
+                usage_written = True
+            except Exception:
+                pass  # A lost/revoked task may not accept further audit writes.
         try:
             context = self.java.get_context(signed.task_id, token)
             self._assert_scope(context, signed)
@@ -223,20 +244,21 @@ class TaskRunner:
                     result, context, signed, token, check_active)
                 publish(result.answer)
             check_active()
-            self.java.update_state(
-                signed.task_id, token, status="SUCCEEDED", stage="COMPLETED"
-            )
+            publish_usage()
+            self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
             outcome = "succeeded"
-        except BudgetExceeded:
+        except BudgetExceeded as error:
             outcome = "budget"
             if running:
+                publish_usage()
                 self._try_fail(signed.task_id, token, status="FAILED", stage="BUDGET_EXCEEDED",
-                               error_code="BUDGET_EXCEEDED", error_message=failure_message("任务调用或输出预算已用尽"))
+                               error_code="BUDGET_EXCEEDED", error_message=failure_message("任务预算终止：" + str(error)))
         except TaskCancelled:
             outcome = "cancelled"
         except TaskDeadlineExceeded:
             outcome = "timeout"
             if running:
+                publish_usage()
                 self._try_fail(
                     signed.task_id, token, status="FAILED", stage="TIMEOUT",
                     error_code="TASK_TIMEOUT", error_message=failure_message("Agent 任务超过总执行时间限制"),
@@ -255,6 +277,7 @@ class TaskRunner:
         except Exception:
             outcome = "failed"
             if running:
+                publish_usage()
                 self._try_fail(
                     signed.task_id,
                     token,

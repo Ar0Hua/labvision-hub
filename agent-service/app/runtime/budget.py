@@ -1,10 +1,7 @@
 """Per-task deterministic request and output-token reservation limits."""
 from contextvars import ContextVar
-from dataclasses import dataclass
-
-
-class BudgetExceeded(RuntimeError):
-    pass
+from dataclasses import dataclass, field
+from app.runtime.model_usage import BudgetExceeded, ModelUsageBudget
 
 
 @dataclass
@@ -16,9 +13,10 @@ class TaskBudget:
     models: int = 0
     output_tokens: int = 0
     exhausted: bool = False
+    usage: ModelUsageBudget = field(default_factory=ModelUsageBudget)
 
     def check(self):
-        if self.exhausted:
+        if self.exhausted or self.usage.exhausted:
             raise BudgetExceeded("task budget exhausted")
 
     def reserve(self, *, model=False, output_tokens=0):
@@ -40,3 +38,19 @@ def reserve(*, model=False, output_tokens=0):
     budget = active_budget.get()
     if budget is not None:
         budget.reserve(model=model, output_tokens=output_tokens)
+
+
+def reserve_model(model: str, text: str, pictures: int = 0, output_tokens: int = 0):
+    budget = active_budget.get()
+    if budget is not None:
+        budget.usage.reserve(model, text, pictures, output_tokens)
+        budget.reserve(model=True, output_tokens=output_tokens)
+
+
+def record_usage(model: str, body: dict):
+    budget = active_budget.get()
+    if budget is not None:
+        budget.usage.record(model, body)
+        if budget.usage.reported_output > budget.max_output_tokens:
+            budget.exhausted = True
+            raise BudgetExceeded("reported output tokens exceeded budget")

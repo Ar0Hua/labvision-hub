@@ -31,6 +31,10 @@ class Settings:
     max_tool_calls: int = 100
     max_model_calls: int = 10
     max_output_tokens: int = 8000
+    max_input_tokens: int = 262144
+    max_task_cost: str = "0"
+    model_prices_json: str = "{}"
+    image_token_reservation: int = 8192
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -38,6 +42,10 @@ class Settings:
         if len(secret) < 32:
             raise RuntimeError("AGENT_INTERNAL_SECRET must contain at least 32 characters")
         return cls(
+            max_input_tokens=max(1024, min(1000000, int(os.getenv("AGENT_MAX_INPUT_TOKENS", "262144")))),
+            max_task_cost=os.getenv("AGENT_MAX_TASK_COST", "0"),
+            model_prices_json=os.getenv("AGENT_MODEL_PRICES_JSON", "{}"),
+            image_token_reservation=max(1024, min(65536, int(os.getenv("AGENT_IMAGE_TOKEN_RESERVATION", "8192")))),
             max_tool_calls=max(1, min(500, int(os.getenv("AGENT_MAX_TOOL_CALLS", "100")))),
             max_model_calls=max(1, min(30, int(os.getenv("AGENT_MAX_MODEL_CALLS", "10")))),
             max_output_tokens=max(256, min(30000, int(os.getenv("AGENT_MAX_OUTPUT_TOKENS", "8000")))),

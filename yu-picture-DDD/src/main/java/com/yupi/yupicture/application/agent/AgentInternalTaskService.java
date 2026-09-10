@@ -68,6 +68,7 @@ public class AgentInternalTaskService {
 
     @Transactional(rollbackFor=Exception.class)
     public void updateState(String bearerToken,String taskId,AgentInternalStateRequest request) {
+        tasks.lockById(taskId);
         context(bearerToken,taskId);
         if(request==null||request.getStatus()==null||request.getStage()==null
                 ||!request.getStage().matches("[A-Za-z0-9_-]{1,32}")) {
@@ -85,7 +86,11 @@ public class AgentInternalTaskService {
         if(changed!=1) throw new BusinessException(ErrorCode.OPERATION_ERROR,"任务状态已变化");
         String eventType="FAILED".equals(request.getStatus())?"error":
                 ("SUCCEEDED".equals(request.getStatus())?"done":"status");
-        events.append(taskId,eventType,"{\"status\":\""+request.getStatus()+"\",\"stage\":\""+request.getStage()+"\"}");
+        Map<String,Object> terminalPayload=new LinkedHashMap<>();
+        terminalPayload.put("status",request.getStatus()); terminalPayload.put("stage",request.getStage());
+        if(errorCode!=null) terminalPayload.put("errorCode",errorCode);
+        if(errorMessage!=null) terminalPayload.put("message",errorMessage);
+        events.append(taskId,eventType,JSONUtil.toJsonStr(terminalPayload));
     }
 
     private List<String> parsePictureIds(String value) {
