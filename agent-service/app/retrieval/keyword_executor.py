@@ -5,6 +5,7 @@ from typing import Callable
 from app.runtime.java_client import PictureCandidate, TaskContext
 from app.retrieval.intent import IntentParser
 from app.retrieval.fusion import reciprocal_rank_fusion
+from app.retrieval.ordering import order_candidates
 from app.retrieval.semantic import SemanticRetriever
 
 
@@ -96,16 +97,22 @@ class KeywordSearchExecutor:
                     pass
         weights = {name: (1.5 if name == "image" else 1.0) for name in channels}
         ranking = reciprocal_rank_fusion(
-            channels, top_k=intent.limit, weights=weights
+            channels, top_k=50, weights=weights
         )
         candidates = [
             metadata[item.picture_id] for item in ranking
             if item.picture_id in metadata and item.picture_id not in excluded
         ]
         # Recheck the final fused set and attach only current Java-provided features.
-        checked = authorize([picture.pictureId for picture in candidates]) if candidates else []
+        checked = []
+        for offset in range(0, len(candidates), 20):
+            check_active()
+            checked.extend(authorize([picture.pictureId
+                                      for picture in candidates[offset:offset + 20]]))
         authorized = {picture.pictureId: picture for picture in checked}
         candidates = [authorized[p.pictureId] for p in candidates if p.pictureId in authorized]
+        check_active()
+        candidates = order_candidates(candidates, intent.sort)
         seen_hashes = set()
         visible = []
         collapsed = 0
@@ -117,7 +124,7 @@ class KeywordSearchExecutor:
             if digest:
                 seen_hashes.add(digest)
             visible.append(picture)
-        candidates = visible
+        candidates = visible[:intent.limit]
         citations = [
             {
                 "pictureId": picture.pictureId,
@@ -134,6 +141,10 @@ class KeywordSearchExecutor:
                 candidate_count=0,
             )
         lines = [f"在当前会话可访问范围内找到 {len(candidates)} 项相关视觉资产："]
+        if intent.sort != "relevance":
+            direction = "从新到旧" if intent.sort == "newest" else "从旧到新"
+            lines.append(f"排序：本次融合候选（最多 50 项）内按上传时间{direction}；"
+                         "时间缺失或无效的项置后，不代表全库时间排名。")
         for index, picture in enumerate(candidates[:5], start=1):
             name = self._short(picture.name or "未命名图片", 60)
             details = []
