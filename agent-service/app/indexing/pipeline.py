@@ -4,6 +4,7 @@ import json
 from urllib.parse import quote
 
 import httpx
+from app.runtime.http_client import client as managed_client
 from pydantic import BaseModel, ConfigDict
 
 from app.config import Settings
@@ -44,14 +45,14 @@ class PictureIndexWorker:
                  image: httpx.Client | None = None,
                  multimodal: httpx.Client | None = None) -> None:
         self._settings = settings
-        self._java = java or httpx.Client(
+        self._java = java or managed_client(
             base_url=settings.java_base_url, timeout=settings.java_timeout_seconds)
-        self._dashscope = dashscope or httpx.Client(
+        self._dashscope = dashscope or managed_client(
             base_url=settings.dashscope_base_url, timeout=settings.model_timeout_seconds)
-        self._qdrant = qdrant or httpx.Client(
+        self._qdrant = qdrant or managed_client(
             base_url=settings.qdrant_url, timeout=settings.qdrant_timeout_seconds)
-        self._image = image or httpx.Client(timeout=settings.model_timeout_seconds)
-        self._multimodal = multimodal or httpx.Client(
+        self._image = image or managed_client(timeout=settings.model_timeout_seconds)
+        self._multimodal = multimodal or managed_client(
             base_url=settings.image_embedding_base_url, timeout=settings.model_timeout_seconds)
         self._owned = (java is None, dashscope is None, qdrant is None,
                        image is None, multimodal is None)

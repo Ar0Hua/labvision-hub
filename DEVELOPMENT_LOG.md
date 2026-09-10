@@ -1,3 +1,7 @@
+# Step 76：调用可靠性
+
+- 默认外部HTTP链路增加有界熔断及仅连接失败重试，详见 agent-service/STEP-76.md。
+
 # Step 75：运行保护
 
 - 增加模型地址白名单、一次意图结构修复与图步数上限，详见 agent-service/STEP-75.md。

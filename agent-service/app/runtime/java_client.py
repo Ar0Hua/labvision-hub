@@ -1,6 +1,7 @@
 from typing import Any
 
 import httpx
+from app.runtime.http_client import client as managed_client
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from urllib.parse import urlsplit
 
@@ -86,7 +87,7 @@ class JavaGatewayError(RuntimeError):
 
 class JavaTaskClient:
     def __init__(self, settings: Settings, client: httpx.Client | None = None) -> None:
-        self._client = client or httpx.Client(
+        self._client = client or managed_client(
             base_url=settings.java_base_url,
             timeout=settings.java_timeout_seconds,
         )

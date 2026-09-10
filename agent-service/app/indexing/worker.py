@@ -4,6 +4,7 @@ import time
 from urllib.parse import quote
 
 import httpx
+from app.runtime.http_client import client as managed_client
 from app.indexing.pipeline import PictureIndexWorker
 from pydantic import BaseModel, ConfigDict
 
@@ -34,13 +35,13 @@ class LegacyPictureIndexWorker:
         qdrant: httpx.Client | None = None,
     ) -> None:
         self._settings = settings
-        self._java = java or httpx.Client(
+        self._java = java or managed_client(
             base_url=settings.java_base_url, timeout=settings.java_timeout_seconds
         )
-        self._dashscope = dashscope or httpx.Client(
+        self._dashscope = dashscope or managed_client(
             base_url=settings.dashscope_base_url, timeout=settings.model_timeout_seconds
         )
-        self._qdrant = qdrant or httpx.Client(
+        self._qdrant = qdrant or managed_client(
             base_url=settings.qdrant_url, timeout=settings.qdrant_timeout_seconds
         )
         self._owned = (java is None, dashscope is None, qdrant is None)

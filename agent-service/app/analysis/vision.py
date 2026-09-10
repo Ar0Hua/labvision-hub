@@ -1,5 +1,6 @@
 import json
 import httpx
+from app.runtime.http_client import client as managed_client
 import re
 import time
 from app.observability.tracing import traced
@@ -47,7 +48,7 @@ class VisionAnalyzer:
             {"type": "image_url", "image_url": {"url": item.temporaryUrl}}
             for item in selected
         )
-        client = self._client or httpx.Client(
+        client = self._client or managed_client(
             base_url=self._settings.dashscope_base_url,
             timeout=self._settings.model_timeout_seconds,
         )
@@ -86,7 +87,7 @@ class VisionAnalyzer:
     def analyze_temporary(self, query: str, picture: TemporaryInput) -> str | None:
         if not self.enabled:
             return None
-        client = self._client or httpx.Client(base_url=self._settings.dashscope_base_url,
+        client = self._client or managed_client(base_url=self._settings.dashscope_base_url,
                                               timeout=self._settings.model_timeout_seconds)
         try:
             reserve_model(self._settings.vision_model, self.SYSTEM_PROMPT + query[:500], pictures=1, output_tokens=800)
@@ -126,7 +127,7 @@ class VisionAnalyzer:
         text = json.dumps({"query":query[:500], "allowedPictureIds":allowed}, ensure_ascii=False)
         content = [{"type":"text","text":text}] + [
             {"type":"image_url","image_url":{"url":p.dataUrl if temporary else p.temporaryUrl}} for p in selected]
-        client = self._client or httpx.Client(base_url=self._settings.dashscope_base_url,
+        client = self._client or managed_client(base_url=self._settings.dashscope_base_url,
                                              timeout=self._settings.model_timeout_seconds)
         last_check = 0.0
         def stream_check():
@@ -154,7 +155,7 @@ class VisionAnalyzer:
         """Reduce bounded batch observations without sending images again."""
         if not self.enabled or len(observations) < 2:
             return None
-        client = self._client or httpx.Client(
+        client = self._client or managed_client(
             base_url=self._settings.dashscope_base_url,
             timeout=self._settings.model_timeout_seconds)
         try:

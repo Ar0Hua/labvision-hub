@@ -4,6 +4,7 @@ import math
 from urllib.parse import quote
 
 import httpx
+from app.runtime.http_client import client as managed_client
 
 from app.config import Settings
 from app.runtime.budget import reserve, reserve_model, record_usage
@@ -38,11 +39,11 @@ class SemanticRetriever:
                filters: dict | None = None) -> list[str]:
         if not self.enabled:
             return []
-        embedding_client = self._embedding_client or httpx.Client(
+        embedding_client = self._embedding_client or managed_client(
             base_url=self._settings.dashscope_base_url,
             timeout=self._settings.model_timeout_seconds,
         )
-        qdrant_client = self._qdrant_client or httpx.Client(
+        qdrant_client = self._qdrant_client or managed_client(
             base_url=self._settings.qdrant_url,
             timeout=self._settings.qdrant_timeout_seconds,
         )
@@ -108,7 +109,7 @@ class SemanticRetriever:
                 examples.append(picture_id)
         if not examples:
             return []
-        qdrant_client = self._qdrant_client or httpx.Client(
+        qdrant_client = self._qdrant_client or managed_client(
             base_url=self._settings.qdrant_url,
             timeout=self._settings.qdrant_timeout_seconds,
         )
@@ -161,10 +162,10 @@ class SemanticRetriever:
     @traced("retrieval.multimodal")
     def _search_multimodal(self, content: dict, scope_key, limit, filters):
         query_filter = self._filter(scope_key, filters)
-        embedding = self._embedding_client or httpx.Client(
+        embedding = self._embedding_client or managed_client(
             base_url=self._settings.image_embedding_base_url,
             timeout=self._settings.model_timeout_seconds)
-        qdrant = self._qdrant_client or httpx.Client(
+        qdrant = self._qdrant_client or managed_client(
             base_url=self._settings.qdrant_url, timeout=self._settings.qdrant_timeout_seconds)
         try:
             reserve_model(self._settings.image_embedding_model, content.get("text", "temporary image"),
@@ -204,7 +205,7 @@ class SemanticRetriever:
         selected = list(picture_ids)
         selected_set = set(selected)
         pair_scores: dict[tuple[str, str], list[float]] = {}
-        qdrant_client = self._qdrant_client or httpx.Client(
+        qdrant_client = self._qdrant_client or managed_client(
             base_url=self._settings.qdrant_url,
             timeout=self._settings.qdrant_timeout_seconds,
         )

@@ -2,6 +2,7 @@ import argparse
 from urllib.parse import quote
 
 import httpx
+from app.runtime.http_client import client as managed_client
 
 from app.config import Settings
 
@@ -13,7 +14,7 @@ class QdrantSchemaError(RuntimeError):
 class QdrantSchemaManager:
     def __init__(self, settings: Settings, client: httpx.Client | None = None) -> None:
         self._settings = settings
-        self._client = client or httpx.Client(
+        self._client = client or managed_client(
             base_url=settings.qdrant_url, timeout=settings.qdrant_timeout_seconds
         )
         self._owns_client = client is None

@@ -3,6 +3,7 @@ from datetime import date
 from typing import Literal, Self
 
 import httpx
+from app.runtime.http_client import client as managed_client
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from app.config import Settings
@@ -140,7 +141,7 @@ class IntentParser:
 
         if not self._settings.dashscope_api_key or not self._settings.chat_model:
             return fallback
-        client = self._client or httpx.Client(
+        client = self._client or managed_client(
             base_url=self._settings.dashscope_base_url,
             timeout=self._settings.model_timeout_seconds,
         )
