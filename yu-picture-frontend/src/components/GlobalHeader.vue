@@ -1,15 +1,15 @@
 <template>
     <div id="globalHeader">
         <a-row :wrap="false">
-            <a-col flex="200px">
+            <a-col flex="0 0 200px" class="brand-column">
                 <router-link to="/">
                     <div class="title-bar">
-                        <img class="logo" src="../assets/logo.png" alt="logo" />
+                        <img class="logo" src="/labvision-mark.svg" alt="LabVision 视觉资产平台图标" />
                         <div class="title">LabVision Hub</div>
                     </div>
                 </router-link>
             </a-col>
-            <a-col flex="auto">
+            <a-col flex="auto" class="menu-column">
                 <a-menu v-model:selectedKeys="current" mode="horizontal" :items="items" @click="doMenuClick" />
             </a-col>
             <!-- 用户信息展示栏 -->
@@ -50,7 +50,8 @@
 import { computed, h, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { HomeOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons-vue';
-import { MenuProps, message } from 'ant-design-vue';
+import { message } from 'ant-design-vue';
+import type { MenuProps } from 'ant-design-vue';
 import { useLoginUserStore } from '@/stores/useLoginUserStore';
 import { userLogoutUsingPost } from '@/api/userController';
 
@@ -84,11 +85,6 @@ const originItems = [
         key: '/admin/spaceManage',
         label: '空间管理',
         title: '空间管理',
-    },
-    {
-        key: 'others',
-        label: h('a', { href: 'https://codefather.cn', target: '_blank' }, '编程导航'),
-        title: '编程导航',
     }
 ]
 
@@ -145,19 +141,26 @@ const doLogout = async () => {
 </script>
 
 <style scoped>
+.brand-column { box-sizing: border-box; width: 200px; max-width: 200px; min-width: 0; padding: 0 12px; }
+.menu-column { min-width: 0; }
 #globalHeader .title-bar {
     display: flex;
     align-items: center;
+    gap: 8px;
+    height: 64px;
 }
 
 .title {
     color: black;
-    font-size: 18px;
-    margin-left: 16px;
+    font-size: 16px;
+    white-space: nowrap;
 }
 
 .logo {
-    height: 48px;
+    height: 40px;
+    width: 40px;
+    flex-shrink: 0;
+    object-fit: contain;
 
 }
 </style>

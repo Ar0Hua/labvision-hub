@@ -5,8 +5,9 @@
         <div><strong>视觉资产 Agent</strong><small>{{ scopeLabel }}</small></div>
         <a-button type="primary" size="small" @click="createConversation">新会话</a-button>
       </div>
-      <div style="display: flex; gap: 12px; margin: 8px 0">
-        <a href="/agent?scope=all">全部授权空间</a><a href="/agent">仅公共图库</a>
+      <div class="scope-switch" aria-label="检索范围">
+        <a href="/agent?scope=all" :class="{ selected: allSpaces }" :aria-current="allSpaces ? 'page' : undefined">全部授权空间</a>
+        <a href="/agent" :class="{ selected: !allSpaces && !requestedSpaceId }" :aria-current="!allSpaces && !requestedSpaceId ? 'page' : undefined">仅公共图库</a>
       </div>
       <a-spin :spinning="loadingConversations">
         <button v-for="item in conversations" :key="item.conversationId" class="conversation-item"
@@ -27,7 +28,7 @@
         </a-tag>
       </header>
 
-      <section ref="messageContainer" class="messages">
+      <section ref="messageContainer" class="messages" tabindex="0" aria-label="对话记录，可滚动查看完整回答">
         <a-spin :spinning="loadingHistory">
           <article v-for="turn in turns" :key="turn.task.taskId" class="turn">
             <div class="user-message">{{ turn.query }}</div>
@@ -365,7 +366,12 @@ async function scrollToBottom() { await nextTick(); if (messageContainer.value) 
 </script>
 
 <style scoped>
-.agent-workbench { display: grid; grid-template-columns: 260px minmax(0, 1fr); height: calc(100vh - 145px); min-height: 600px; background: #fff; border: 1px solid #edf0f4; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 36px rgba(24, 39, 75, .06); }
+.scope-switch { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.scope-switch a { padding: 7px 9px; border-radius: 7px; color: #1677ff; background: #edf3fa; }
+.scope-switch a:hover { background: #dbeafe; }
+.scope-switch a.selected { background: #1677ff; color: #fff; font-weight: 600; }
+.scope-switch a:focus-visible { outline: 2px solid #0958d9; outline-offset: 2px; }
+.agent-workbench { display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: calc(100vh - 160px); height: calc(100dvh - 160px); min-height: 480px; background: #fff; border: 1px solid #edf0f4; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 36px rgba(24, 39, 75, .06); }
 .conversation-panel { padding: 18px 12px; border-right: 1px solid #edf0f4; background: #f8fafc; overflow-y: auto; }
 .panel-title { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 14px; }
 .panel-title small, .conversation-item small { display: block; color: #8b95a7; margin-top: 3px; }
@@ -373,15 +379,22 @@ async function scrollToBottom() { await nextTick(); if (messageContainer.value) 
 .conversation-item:hover, .conversation-item.active { background: #e8f2ff; color: #1677ff; }
 .example-picker { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px 10px; align-items: center; margin-bottom: 10px; }
 .example-picker small { grid-column: 2; color: #8b95a7; }
-.chat-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
+.chat-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; overflow: hidden; }
 .chat-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px; border-bottom: 1px solid #edf0f4; }
 .chat-header h2 { margin: 0 0 4px; font-size: 20px; }.chat-header p { margin: 0; color: #7a8494; }
-.messages { padding: 24px; overflow-y: auto; background: linear-gradient(180deg, #fbfdff 0%, #fff 100%); }
+.messages { min-height: 0; min-width: 0; padding: 24px; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; overscroll-behavior-y: contain; scrollbar-width: auto; scrollbar-color: #a8b5c5 #f1f5f9; background: linear-gradient(180deg, #fbfdff 0%, #fff 100%); }
+.messages::-webkit-scrollbar { width: 12px; }
+.messages::-webkit-scrollbar-track { background: #f1f5f9; }
+.messages::-webkit-scrollbar-thumb { border: 3px solid #f1f5f9; border-radius: 8px; background: #a8b5c5; }
+.messages::-webkit-scrollbar-thumb:hover { background: #7a8da5; }
+.messages:focus-visible { outline: 2px solid #1677ff; outline-offset: -2px; }
+.user-message, .agent-message, .stage-line { overflow-wrap: anywhere; }
+.composer { max-height: 45vh; overflow-y: auto; }
 .turn { margin-bottom: 24px; }.user-message { margin-left: auto; max-width: 72%; width: fit-content; padding: 11px 15px; background: #1677ff; color: #fff; border-radius: 14px 14px 3px 14px; }
 .agent-message { max-width: 86%; margin-top: 12px; padding: 16px; border: 1px solid #e8edf3; border-radius: 4px 14px 14px 14px; background: #fff; }
 .stage-line { margin-bottom: 10px; color: #657187; font-size: 13px; }.stage-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #36cfc9; }
 .agent-message pre { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.75; color: #273449; }.waiting { color: #8b95a7; }
 .citations { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 14px; }.citation-card { padding: 10px 12px; border-radius: 9px; background: #f2f7ff; color: #28558a; }.citation-card span, .citation-card small { display: block; }.citation-card small { margin-top: 3px; color: #7b8da6; }
 .task-actions { margin-top: 12px; }.composer { padding: 16px 20px; border-top: 1px solid #edf0f4; background: #fff; }.composer-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: #8b95a7; font-size: 12px; }
-@media (max-width: 800px) { .agent-workbench { grid-template-columns: 1fr; height: auto; }.conversation-panel { max-height: 180px; border-right: 0; border-bottom: 1px solid #edf0f4; }.messages { min-height: 420px; max-height: 60vh; }.composer-actions { align-items: flex-end; gap: 8px; }.user-message, .agent-message { max-width: 94%; } }
+@media (max-width: 800px) { .agent-workbench { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }.conversation-panel { max-height: 180px; border-right: 0; border-bottom: 1px solid #edf0f4; }.messages { min-height: 240px; max-height: 60vh; }.composer-actions { align-items: flex-end; gap: 8px; }.user-message, .agent-message { max-width: 100%; } }
 </style>

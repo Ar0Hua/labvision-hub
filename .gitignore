@@ -20,3 +20,12 @@
 /*.docx
 /*面试*.md
 /面经总结.md
+
+# Local credentials and private key material (never publish)
+**/api-key.txt
+**/api_key.txt
+**/secrets.local.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

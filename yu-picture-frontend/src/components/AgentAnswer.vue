@@ -38,7 +38,8 @@ const blocks = computed(() => {
 </script>
 
 <style scoped>
-pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font: inherit; min-height: 1em; }
+.agent-answer { min-width: 0; line-height: 1.75; color: #273449; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; margin: 0; font: inherit; min-height: 1em; }
 .table-scroll { overflow-x: auto; margin: 12px 0; }
 table { border-collapse: collapse; font-size: 13px; }
 th, td { padding: 6px 10px; border: 1px solid #dce3ed; text-align: right; white-space: nowrap; }

@@ -10,12 +10,6 @@
                     <router-view />
                 </a-layout-content>
             </a-layout>
-            <a-layout-footer class="footer">
-                <a href="https://codefather.cn" target="_blank">
-                    编程导航 by 程序员鱼皮
-                </a>
-
-            </a-layout-footer>
         </a-layout>
     </div>
 </template>
@@ -30,7 +24,7 @@ import GlobalSider from '@/components/GlobalSider.vue';
     background-color: #f5f5f5;
     color: unset;
     margin-bottom: 1px;
-    padding-inline: 28px;
+    padding-inline: 0;
 }
 
 #basicLayout .sider {
@@ -47,16 +41,5 @@ import GlobalSider from '@/components/GlobalSider.vue';
 #basicLayout .content {
     padding: 28px;
     background-color: linear-gradient(to right, #fefefe, #fff);
-    margin-bottom: 28px;
-}
-
-#basicLayout .footer {
-    color: #efefef;
-    padding: 16px;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
 }
 </style>

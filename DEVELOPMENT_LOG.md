@@ -366,3 +366,15 @@
 
 - 完成显式多空间统计对比、回放及导出权限复核；Python 75 项、Java Agent 和前端构建通过。
 - 更新完成状态及待办边界，详见 agent-service/STEP-59.md 和 agent-service/IMPLEMENTATION_STATUS.md。
+
+# 2026-09-11：Agent 工作台体验与 LabVision 品牌调整
+
+- 对比基线：远程 `origin/main` 提交 `39b6122`（docs(agent): reconcile P0 implementation and remaining acceptance checks）。
+- 修复长回答显示不全：约束工作台网格高度，对话区域提供独立滚动条与键盘聚焦，改善长文本换行和移动端布局。
+- 图片引用卡片上传日期按上海时区显示到年月日；通过用户公开资料接口显示上传人名称，保留字符串 ID 避免精度丢失，资料不可用时显示兜底名称。
+- 为“全部授权空间”和“仅公共图库”增加选中背景及无障碍状态。
+- 浏览器标题与描述更新为 LabVision Hub 视觉资产管理与协作平台；新增视觉检索主题 SVG 图标，用作页签及页头标识；页头品牌区与 200px 侧栏对齐。
+- 移除顶部“编程导航”入口、底部推广署名及页脚预留空白。
+- 新增 `LOCAL_STARTUP_GUIDE.md`，仅记录本机 MySQL、Docker Redis/Qdrant、DDD 后端、Conda Agent/Worker 和前端的日常启动、检查与停止步骤。
+- 加强忽略规则，排除 API key 文本及私钥文件；本地环境配置、数据库、日志、构建产物和 Docker 数据不提交。用户头像属于本地数据库变更，不导出数据库上传。
+- 验证：前端 `npm run build-only` 构建通过（存在大分包体积提示）。本次未重启业务服务，未将此前 SSE 排队状态问题标记为已修复，也不代表完整 P0 验收通过。
