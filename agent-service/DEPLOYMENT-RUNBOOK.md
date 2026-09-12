@@ -5,7 +5,7 @@
 ## 1. 上线前
 
 1. 备份目标 MySQL，并确认当前 DDD 后端版本和 `picture` 表结构。
-2. 按顺序人工审核 `yu-picture-DDD/sql/agent/V001` 至 `V013`，仅执行目标库尚未执行的脚本；每步核对表、索引和触发器。V012/V013为全范围会话与临时图片字段，必须在对应代码启动前完成。
+2. 按顺序人工审核 `LabVision-hub-DDD/sql/agent/V001` 至 `V013`，仅执行目标库尚未执行的脚本；每步核对表、索引和触发器。V012/V013为全范围会话与临时图片字段，必须在对应代码启动前完成。
 3. 准备 Redis 8 checkpoint 实例和 Qdrant；二者使用独立账号、网络访问控制和持久卷。
 4. 创建至少 32 字节的随机 `AGENT_INTERNAL_SECRET`，Java 与 Python 使用相同值，不写入仓库。
 5. 配置 DashScope API Key、地域匹配的 Base URL、聊天/视觉/embedding 模型和 COS 参数。

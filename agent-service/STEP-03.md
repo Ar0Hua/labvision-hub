@@ -1,7 +1,7 @@
 # 会话归属持久化基础
 
 以 MySQL agent_conversation 替换 Redis 24 小时归属信息，每次查询核验当前用户和 ACTIVE 状态。
-新增增量脚本 yu-picture-DDD/sql/agent/V001__agent_conversation.sql。
+新增增量脚本 LabVision-hub-DDD/sql/agent/V001__agent_conversation.sql。
 本次仅开发代码，没有执行迁移；使用新会话接口前须手动建表，未建表时请求将失败。
 旧 Redis 会话不会自动迁移，需要创建新会话。
 

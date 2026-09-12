@@ -31,19 +31,19 @@ jobs:
           distribution: temurin
           java-version: '11'
           cache: maven
-      - run: mvn -B -f yu-picture-DDD/pom.xml '-Dtest=Agent*Test' test
+      - run: mvn -B -f LabVision-hub-DDD/pom.xml '-Dtest=Agent*Test' test
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: yu-picture-frontend
+        working-directory: LabVision-hub-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: yu-picture-frontend/package-lock.json
+          cache-dependency-path: LabVision-hub-frontend/package-lock.json
       - run: npm ci
       - run: npm run build-only

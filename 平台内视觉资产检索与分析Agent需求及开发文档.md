@@ -2,7 +2,7 @@
 
 > 文档版本：v1.0  
 > 编写日期：2026-08-12  
-> 适用仓库：`yu-picture-master`（重点面向 `yu-picture-backend-ddd` 与 `yu-picture-frontend`）  
+> 适用仓库：`LabVision-hub`（重点面向 `LabVision-hub-DDD` 与 `LabVision-hub-frontend`）
 > 文档性质：需求规格说明（PRD）+ 技术设计（TDD）+ 分阶段开发手册  
 > 说明：本文只描述拟开发能力，不表示仓库当前已经实现这些 Agent、向量检索或分析能力。
 
@@ -1053,4 +1053,3 @@ agent.request
 7. 用户编辑并批准其中 5 张图片的标签；系统校验审批 token 和 `picture:edit` 权限后执行，审计页展示 before/after。
 
 这个演示同时覆盖站内多模态检索、Agent 状态、多轮上下文、空间 RBAC、混合检索、分析、引用、HITL、幂等和可观测性，能够体现后端与 Agent 工程的结合。
-

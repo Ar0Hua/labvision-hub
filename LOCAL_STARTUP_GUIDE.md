@@ -1,6 +1,6 @@
 # LabVision Hub 本机启动与停止步骤
 
-项目目录：`E:\yu-picture-code`。按以下顺序启动，每个服务已运行时不要重复启动。
+项目目录：`E:\LabVision-hub`。按以下顺序启动，每个服务已运行时不要重复启动。
 
 ## 1. 启动 MySQL
 
@@ -51,8 +51,8 @@ Redis 应为 `healthy` 并返回 `PONG`，Qdrant 应通过就绪检查。不要�
 
 ## 4. 在 IDEA 启动 DDD 后端
 
-1. 打开 `E:\yu-picture-code\yu-picture-DDD`。
-2. 选择 `YuPictureBackendApplication` 运行配置：Java 11，模块 `yu-picture-backend-ddd`，有效配置文件 `local`。
+1. 打开 `E:\LabVision-hub\LabVision-hub-DDD`。
+2. 选择 `YuPictureBackendApplication` 运行配置：Java 11，模块 `LabVision-hub-backend-ddd`，有效配置文件 `local`。
 3. 保留运行配置中的环境变量：`AGENT_INTERNAL_SECRET` 与 `agent-service\.env.local.ps1` 中的实际值相同；`AGENT_SERVICE_BASE_URL=http://127.0.0.1:8000`。
 4. 点击运行，等待 Spring Boot 启动完成。
 
@@ -66,11 +66,11 @@ Invoke-RestMethod http://127.0.0.1:8123/api/user/get/login
 
 ## 5. 在 VS Code 启动 Agent
 
-打开 `E:\yu-picture-code\agent-service`，新建 PowerShell 终端：
+打开 `E:\LabVision-hub\agent-service`，新建 PowerShell 终端：
 
 ```powershell
 conda activate labvision-agent
-cd E:\yu-picture-code\agent-service
+cd E:\LabVision-hub\agent-service
 Set-ExecutionPolicy -Scope Process Bypass
 . .\.env.local.ps1
 $env:AGENT_CHECKPOINT_REDIS_URL = 'redis://127.0.0.1:6379/0'
@@ -95,7 +95,7 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 
 ```powershell
 conda activate labvision-agent
-cd E:\yu-picture-code\agent-service
+cd E:\LabVision-hub\agent-service
 Set-ExecutionPolicy -Scope Process Bypass
 . .\.env.local.ps1
 $env:AGENT_CHECKPOINT_REDIS_URL = 'redis://127.0.0.1:6379/0'
@@ -109,7 +109,7 @@ labvision-index-worker
 新建第三个 PowerShell 终端：
 
 ```powershell
-cd E:\yu-picture-code\yu-picture-frontend
+cd E:\LabVision-hub\LabVision-hub-frontend
 npm run dev
 ```
 

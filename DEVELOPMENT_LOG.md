@@ -378,3 +378,12 @@
 - 新增 `LOCAL_STARTUP_GUIDE.md`，仅记录本机 MySQL、Docker Redis/Qdrant、DDD 后端、Conda Agent/Worker 和前端的日常启动、检查与停止步骤。
 - 加强忽略规则，排除 API key 文本及私钥文件；本地环境配置、数据库、日志、构建产物和 Docker 数据不提交。用户头像属于本地数据库变更，不导出数据库上传。
 - 验证：前端 `npm run build-only` 构建通过（存在大分包体积提示）。本次未重启业务服务，未将此前 SSE 排队状态问题标记为已修复，也不代表完整 P0 验收通过。
+
+# 2026-09-12：项目目录统一为 LabVision Hub
+
+- 保留全部 Git 历史，不改写既有提交；本次通过一个新提交记录目录重命名。
+- 项目根目录由 `E:\yu-picture-code` 调整为 `E:\LabVision-hub`。
+- 子项目目录统一为 `LabVision-hub-frontend`、`LabVision-hub-DDD`、`LabVision-hub-backend`。
+- 同步更新 CI、Maven 项目标识、Agent 开发文档和本机启停说明中的旧目录引用。
+- Java 包名 `com.yupi.yupicture`、应用入口类及数据库兼容标识保持不变，避免无业务收益的大范围代码迁移。
+- 验证通过：前端生产构建成功，DDD Agent 测试 63 项通过，Python Agent 测试 118 项通过（仅有一项第三方弃用警告）。

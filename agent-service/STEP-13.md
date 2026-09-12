@@ -10,7 +10,7 @@
 
 ## 配置
 
-- 仓库示例见 `yu-picture-DDD/src/main/resources/application-agent.example.yml`；实际值使用环境变量或合并到本机未入库配置。
+- 仓库示例见 `LabVision-hub-DDD/src/main/resources/application-agent.example.yml`；实际值使用环境变量或合并到本机未入库配置。
 - `AGENT_INTERNAL_SECRET`：Java/Python 共享，至少 32 个字符，不得提交仓库。
 - `AGENT_SERVICE_BASE_URL`：默认 `http://127.0.0.1:8000`。
 - `AGENT_SERVICE_CONNECT_TIMEOUT_MS`：默认 2000。

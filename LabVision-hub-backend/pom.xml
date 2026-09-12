@@ -3,10 +3,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.yupi</groupId>
-    <artifactId>yu-picture-backend</artifactId>
+    <artifactId>LabVision-hub-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>yu-picture-backend</name>
-    <description>yu-picture-backend</description>
+    <name>LabVision-hub-backend</name>
+    <description>LabVision-hub-backend</description>
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
