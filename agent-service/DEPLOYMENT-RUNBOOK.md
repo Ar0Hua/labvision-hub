@@ -1,6 +1,6 @@
 # LabVision Agent 部署 Runbook
 
-本文只描述部署步骤，本次开发没有执行这些操作。
+本文用于目标环境部署；迁移、集合初始化和回填应先核对该环境的现有状态。
 
 ## 1. 上线前
 
@@ -17,9 +17,9 @@
 
 1. MySQL、Redis、Qdrant。
 2. 在 `agent-service` 安装 `.[retrieval,agent]`，执行 `labvision-qdrant-init`。
-3. 启动 `labvision-index-worker`，观察 outbox 租约、失败重试和索引延迟。
-4. 启动 FastAPI/uvicorn，检查 `/health` 和 `/metrics`。
-5. 合并 `application-agent.example.yml` 到 Java 的未入库配置后启动 DDD 后端。
+3. 合并 `application-agent.example.yml` 到 Java 的未入库配置后启动 DDD 后端；内部工具接口是 Agent 和 Worker 的依赖。
+4. 在 `agent-service` 启动 `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`，检查 `/health` 和 `/metrics`。
+5. 启动 `labvision-index-worker`，观察 outbox 租约、失败重试和索引延迟。
 6. 设置可选 `VITE_API_BASE_URL`，构建并发布 Vue 前端。
 
 ## 3. 冒烟检查
