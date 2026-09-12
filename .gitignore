@@ -21,6 +21,11 @@
 /*面试*.md
 /面经总结.md
 
+# 本地说明文档：不纳入代码仓库
+/DEVELOPMENT_LOG.md
+/LOCAL_STARTUP_GUIDE.md
+/平台内视觉资产检索与分析Agent需求及开发文档.md
+
 # Local credentials and private key material (never publish)
 **/api-key.txt
 **/api_key.txt
