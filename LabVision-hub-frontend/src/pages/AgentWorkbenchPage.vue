@@ -10,14 +10,28 @@
         <a href="/agent" :class="{ selected: !allSpaces && !requestedSpaceId }" :aria-current="!allSpaces && !requestedSpaceId ? 'page' : undefined">仅公共图库</a>
       </div>
       <a-spin :spinning="loadingConversations">
-        <button v-for="item in conversations" :key="item.conversationId" class="conversation-item"
-          :class="{ active: item.conversationId === activeConversationId }"
-          @click="selectConversation(item.conversationId)">
-          <span>{{ item.allSpaces ? '全部授权空间快照' : item.spaceId ? `空间 ${item.spaceId}` : '公共图库' }}</span>
-          <small>{{ shortId(item.conversationId) }} · {{ formatTime(item.updateTime) }}</small>
-        </button>
+        <div v-for="item in conversations" :key="item.conversationId" class="conversation-row"
+          :class="{ active: item.conversationId === activeConversationId }">
+          <button class="conversation-select" :title="conversationTitle(item)" :aria-current="item.conversationId === activeConversationId ? 'true' : undefined"
+            @click="selectConversation(item.conversationId)">
+            <span class="conversation-name">{{ conversationTitle(item) }}</span>
+            <small>{{ item.allSpaces ? '全部授权空间' : item.spaceId ? '空间对话' : '公共图库' }} · {{ formatTime(item.updateTime) }}</small>
+          </button>
+          <a-dropdown :trigger="['click']">
+            <button class="conversation-menu" :aria-label="`管理对话：${conversationTitle(item)}`">···</button>
+            <template #overlay><a-menu>
+              <a-menu-item @click="openRename(item)">重命名</a-menu-item>
+              <a-menu-item danger @click="confirmRemove(item)">删除对话</a-menu-item>
+            </a-menu></template>
+          </a-dropdown>
+        </div>
         <a-empty v-if="!loadingConversations && !conversations.length" description="暂无会话" />
       </a-spin>
+      <a-modal :open="!!renamingId" title="重命名对话" ok-text="保存" cancel-text="取消"
+        :confirm-loading="savingTitle" :ok-button-props="{ disabled: !newTitle.trim() }"
+        @ok="saveTitle" @cancel="renamingId = ''">
+        <a-input v-model:value="newTitle" :maxlength="60" show-count placeholder="输入对话名称" @press-enter="saveTitle" />
+      </a-modal>
     </aside>
 
     <main class="chat-panel">
@@ -100,7 +114,8 @@ import AgentCitationDetails from '@/components/AgentCitationDetails.vue'
 import request from '@/request'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { message as antMessage } from 'ant-design-vue'
+import { message as antMessage, Modal } from 'ant-design-vue'
+import { renameAgentConversation, removeAgentConversation } from '@/api/agentController'
 import { cancelAgentTask, createAgentConversation, listAgentConversations, listAgentMessages,
   listAgentTaskEvents, listAgentTasks, resumeAgentTask, submitAgentMessage, uploadAgentTemporaryImage, deleteAgentTemporaryImage,
   type AgentConversation, type AgentTask, type AgentTaskEvent } from '@/api/agentController'
@@ -110,6 +125,48 @@ type Citation = { pictureId: string; name?: string; category?: string; matchLeve
 type Turn = { task: AgentTask; query: string; answer: string; citations: Citation[]; tools: string[]; cursor: string }
 const route = useRoute()
 const conversations = ref<AgentConversation[]>([])
+const renamingId = ref('')
+const newTitle = ref('')
+const savingTitle = ref(false)
+function conversationTitle(item: AgentConversation) {
+  return item.title || (item.allSpaces ? '全部授权空间对话' : item.spaceId ? `空间 ${item.spaceId}` : '公共图库对话')
+}
+function openRename(item: AgentConversation) {
+  renamingId.value = item.conversationId; newTitle.value = conversationTitle(item)
+}
+async function saveTitle() {
+  if (!renamingId.value || !newTitle.value.trim() || savingTitle.value) return
+  const id = renamingId.value; const title = newTitle.value.trim()
+  savingTitle.value = true
+  try {
+    const response = await renameAgentConversation(id, title)
+    if (response.data.code !== 0) throw new Error(response.data.message || '重命名失败')
+    const item = conversations.value.find(item => item.conversationId === id)
+    if (item) item.title = title
+    if (renamingId.value === id) renamingId.value = ''
+    antMessage.success('对话名称已保存')
+  } catch (error) { showError(error, '重命名失败') }
+  finally { savingTitle.value = false }
+}
+function confirmRemove(item: AgentConversation) {
+  Modal.confirm({ title: '删除这条对话？', content: `“${conversationTitle(item)}”将从列表移除，进行中的任务将停止。图库图片不受影响。`,
+    okText: '删除', okType: 'danger', cancelText: '取消',
+    async onOk() {
+      try {
+        const response = await removeAgentConversation(item.conversationId)
+        if (response.data.code !== 0) throw new Error(response.data.message || '删除失败')
+        conversations.value = conversations.value.filter(row => row.conversationId !== item.conversationId)
+        if (activeConversationId.value === item.conversationId) {
+          disconnect?.(); disconnect = undefined
+          activeConversationId.value = ''; turns.value = []; selectedPictureIds.value = []; loadingHistory.value = false
+          temporaryImageId.value = ''; temporaryImageName.value = ''; draft.value = ''
+          if (conversations.value.length) await selectConversation(conversations.value[0].conversationId)
+        }
+        antMessage.success('对话已删除')
+      } catch (error) { showError(error, '删除失败'); throw error }
+    },
+  })
+}
 const activeConversationId = ref('')
 const turns = ref<Turn[]>([])
 const draft = ref('')
@@ -254,9 +311,10 @@ async function selectConversation(id: string) {
   loadingHistory.value = true
   try {
     const [messageResponse, taskResponse] = await Promise.all([listAgentMessages(id), listAgentTasks(id)])
+    if (activeConversationId.value !== id) return
     if (messageResponse.data.code !== 0 || taskResponse.data.code !== 0) throw new Error('历史记录加载失败')
     const messages = messageResponse.data.data || []
-    turns.value = await Promise.all((taskResponse.data.data || []).map(async (task) => {
+    const loadedTurns = await Promise.all((taskResponse.data.data || []).map(async (task) => {
       const query = messages.find((item) => item.id === task.inputMessageId)?.content || '历史请求'
       const response = await listAgentTaskEvents(task.taskId)
       const feedback = await request('/api/agent/tasks/' + task.taskId + '/feedback', { method: 'GET' })
@@ -267,10 +325,12 @@ async function selectConversation(id: string) {
       }
       return buildTurn(task, query, response.data.data || [])
     }))
+    if (activeConversationId.value !== id) return
+    turns.value = loadedTurns
     if (activeTurn.value) connect(activeTurn.value)
     await scrollToBottom()
   } catch (error) { showError(error, '历史记录加载失败') }
-  finally { loadingHistory.value = false }
+  finally { if (activeConversationId.value === id) loadingHistory.value = false }
 }
 
 function buildTurn(task: AgentTask, query: string, events: AgentTaskEvent[]) {
@@ -366,6 +426,16 @@ async function scrollToBottom() { await nextTick(); if (messageContainer.value) 
 </script>
 
 <style scoped>
+.conversation-row { display: flex; align-items: center; gap: 4px; border: 1px solid transparent; border-radius: 12px; margin-bottom: 8px; padding: 4px; transition: background .2s; }
+.conversation-row:hover { background: #eef4fb; }
+.conversation-row.active { background: #e7f1ff; border-color: #c5dcfc; }
+.conversation-select { flex: 1; min-width: 0; border: 0; text-align: left; background: none; padding: 10px 8px; cursor: pointer; }
+.conversation-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; color: #345477; }
+.active .conversation-name { color: #1677ff; }
+.conversation-select small { display: block; margin-top: 6px; color: #8393a8; font-size: 11px; }
+.conversation-menu { flex: 0 0 28px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: #6882a2; font-size: 20px; cursor: pointer; }
+.conversation-menu:hover { background: #d6e7fc; color: #1677ff; }
+.conversation-select:focus-visible, .conversation-menu:focus-visible { outline: 2px solid #1677ff; outline-offset: 1px; }
 .scope-switch { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .scope-switch a { padding: 7px 9px; border-radius: 7px; color: #1677ff; background: #edf3fa; }
 .scope-switch a:hover { background: #dbeafe; }

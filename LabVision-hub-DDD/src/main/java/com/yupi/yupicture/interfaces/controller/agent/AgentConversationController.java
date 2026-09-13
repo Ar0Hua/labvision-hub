@@ -58,6 +58,20 @@ public class AgentConversationController {
         return ResultUtils.success(conversations.list(users.getLoginUser(request)));
     }
 
+    @PostMapping("/{id}/rename")
+    public BaseResponse<Boolean> rename(@PathVariable String id,
+            @RequestBody com.yupi.yupicture.interfaces.dto.agent.AgentConversationRenameRequest body,
+            HttpServletRequest request) {
+        conversations.rename(id, body == null ? null : body.getTitle(), users.getLoginUser(request));
+        return ResultUtils.success(true);
+    }
+
+    @DeleteMapping("/{id}")
+    public BaseResponse<Boolean> remove(@PathVariable String id, HttpServletRequest request) {
+        conversations.remove(id, users.getLoginUser(request));
+        return ResultUtils.success(true);
+    }
+
     @PostMapping("/{id}/pictures/details")
     public BaseResponse<List<Map<String, Object>>> details(@PathVariable String id,
             @RequestBody List<Long> pictureIds, HttpServletRequest request) {

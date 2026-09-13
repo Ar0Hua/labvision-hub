@@ -12,6 +12,10 @@ import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.yupi.yupicture.domain.agent.AgentTask;
+import com.yupi.yupicture.infrastructure.mapper.AgentTaskMapper;
+import org.springframework.transaction.annotation.Transactional;
 import com.yupi.yupicture.interfaces.vo.agent.AgentConversationVO;
 
 /** MySQL 持久保存会话归属，每次访问检查状态和用户。 */
@@ -21,6 +25,31 @@ public class AgentConversationService {
     private AgentConversationMapper mapper;
     @Resource
     private AgentAccessService access;
+    @Resource private AgentTaskMapper taskMapper;
+
+    public void rename(String id, String title, User user) {
+        requireUser(user);
+        String normalized = title == null ? "" : title.trim();
+        if (normalized.isEmpty() || normalized.length() > 60 || normalized.chars().anyMatch(Character::isISOControl)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "对话名称须为1至60个字符，不能包含换行或控制字符");
+        }
+        int changed = mapper.update(null, new UpdateWrapper<AgentConversation>()
+                .eq("id", id).eq("userId", user.getId()).eq("status", "ACTIVE")
+                .set("title", normalized).set("updateTime", new java.util.Date()));
+        if (changed != 1) throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "对话不存在或不可修改");
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void remove(String id, User user) {
+        requireUser(user);
+        int changed = mapper.update(null, new UpdateWrapper<AgentConversation>()
+                .eq("id", id).eq("userId", user.getId()).eq("status", "ACTIVE")
+                .set("status", "DELETED").set("updateTime", new java.util.Date()));
+        if (changed != 1) throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "对话不存在或不可删除");
+        taskMapper.update(null, new UpdateWrapper<AgentTask>()
+                .eq("conversationId", id).eq("userId", user.getId()).in("status", "PENDING", "RUNNING")
+                .set("status", "CANCELLED").set("stage", "CANCELLED"));
+    }
 
     public String create(User user) {
         return create(user, null);
@@ -68,6 +97,7 @@ public class AgentConversationService {
         requireUser(user);
         return mapper.selectList(new QueryWrapper<AgentConversation>()
                         .eq("userId", user.getId())
+                        .eq("status", "ACTIVE")
                         .orderByDesc("updateTime")
                         .orderByDesc("id")
                         .last("LIMIT 50"))

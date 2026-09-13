@@ -10,6 +10,7 @@ public class AgentConversationVO {
     private String spaceId;
     private Boolean allSpaces;
     private String status;
+    private String title;
     private Date createTime;
     private Date updateTime;
 
@@ -19,6 +20,7 @@ public class AgentConversationVO {
         vo.setSpaceId(row.getSpaceId() == null ? null : row.getSpaceId().toString());
         vo.setAllSpaces(Boolean.TRUE.equals(row.getAllSpaces()));
         vo.setStatus(row.getStatus());
+        vo.setTitle(row.getTitle());
         vo.setCreateTime(row.getCreateTime());
         vo.setUpdateTime(row.getUpdateTime());
         return vo;

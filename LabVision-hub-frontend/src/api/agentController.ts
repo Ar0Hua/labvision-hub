@@ -1,6 +1,8 @@
 import request from '@/request'
 
-export type AgentConversation = { conversationId: string; spaceId?: string; allSpaces?: boolean; status: string; createTime?: string; updateTime?: string }
+export type AgentConversation = { conversationId: string; title?: string; spaceId?: string; allSpaces?: boolean; status: string; createTime?: string; updateTime?: string }
+export const renameAgentConversation = (id: string, title: string) => request<ApiResponse<boolean>>(`/api/agent/conversations/${encodeURIComponent(id)}/rename`, { method: 'POST', data: { title } })
+export const removeAgentConversation = (id: string) => request<ApiResponse<boolean>>(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export type AgentMessage = { id: string; conversationId: string; role: string; content: string; createTime?: string }
 export type AgentTask = { taskId: string; conversationId: string; inputMessageId: string; status: string; stage: string; errorCode?: string; errorMessage?: string; retryCount?: number; createTime?: string; updateTime?: string }
 export type AgentTaskEvent = { eventId: string; eventType: string; payloadJson: string; createTime?: string }

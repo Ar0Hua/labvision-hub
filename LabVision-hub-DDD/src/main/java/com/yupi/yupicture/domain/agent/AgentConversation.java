@@ -9,6 +9,7 @@ public class AgentConversation {
  private String id;
  private Long userId;
  private String status;
+ private String title;
  private Long spaceId;
  private Boolean allSpaces;
  private String scopeSpaceIdsJson;
