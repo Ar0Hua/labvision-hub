@@ -98,7 +98,7 @@ import AgentAnswer from '@/components/AgentAnswer.vue'
 import AgentRankingDetails from '@/components/AgentRankingDetails.vue'
 import AgentCitationDetails from '@/components/AgentCitationDetails.vue'
 import request from '@/request'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { message as antMessage } from 'ant-design-vue'
 import { cancelAgentTask, createAgentConversation, listAgentConversations, listAgentMessages,
@@ -300,7 +300,7 @@ async function submit() {
     const task = response.data.data
     if (response.data.code !== 0 || !task) throw new Error(response.data.message || '提交失败')
     temporaryImageId.value = ''; temporaryImageName.value = ''
-    const turn: Turn = { task, query: content, answer: '', citations: [], tools: [], cursor: '0' }
+    const turn = reactive<Turn>({ task, query: content, answer: '', citations: [], tools: [], cursor: '0' })
     turns.value.push(turn); draft.value = ''; connect(turn); await scrollToBottom()
   } catch (error) { showError(error, '任务提交失败') }
   finally { submitting.value = false }
@@ -318,6 +318,8 @@ function connect(turn: Turn) {
 }
 
 function applyEvent(turn: Turn, event: AgentStreamEvent) {
+  if (event.id && /^\d+$/.test(event.id) && /^\d+$/.test(turn.cursor)
+    && BigInt(event.id) <= BigInt(turn.cursor)) return
   if (event.id) turn.cursor = event.id
   if (event.type === 'answer_delta' && typeof event.payload.text === 'string') turn.answer += event.payload.text
   if (event.type === 'citation' && typeof event.payload.pictureId === 'string'

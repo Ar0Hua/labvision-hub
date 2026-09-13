@@ -17,7 +17,7 @@ from app.analysis.group_analysis import PictureGroupAnalyzer
 from app.analysis.quality import summarize_features
 from app.security.service_token import ServiceContext
 from app.graph.workflow import RedisCheckpointWorkflow
-from app.analysis.vision import VisionAnalyzer
+from app.analysis.vision import VisionAnalyzer, VisionServiceError
 from app.observability.metrics import runtime_metrics
 from app.observability.tracing import traced, set_outcome
 
@@ -301,6 +301,12 @@ class TaskRunner:
                     error_code="EXECUTOR_UNAVAILABLE",
                     error_message="Agent 检索执行器尚未配置",
                 )
+        except VisionServiceError as error:
+            outcome = "failed"
+            if running:
+                publish_usage()
+                self._try_fail(signed.task_id, token, status="FAILED", stage=phase,
+                               error_code=error.code, error_message=failure_message(str(error)))
         except Exception:
             outcome = "failed"
             if running:

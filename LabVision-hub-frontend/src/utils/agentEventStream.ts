@@ -8,9 +8,15 @@ export function connectAgentTaskEvents(taskId: string, afterEventId: string, onE
   const source = new EventSource(`${API_BASE_URL}/api/agent/tasks/${encodeURIComponent(taskId)}/events?afterEventId=${encodeURIComponent(afterEventId || '0')}`, { withCredentials: true })
   for (const type of AGENT_EVENT_TYPES) {
     source.addEventListener(type, (raw) => {
+      // Native connection errors carry no application payload; let EventSource reconnect.
+      if (!(raw instanceof MessageEvent)) return
       const event = raw as MessageEvent<string>
-      try { onEvent({ id: event.lastEventId, type, payload: JSON.parse(event.data) as Record<string, unknown> }) }
-      catch { onEvent({ id: event.lastEventId, type: 'error', payload: { message: '事件数据格式错误' } }) }
+      let payload: Record<string, unknown>
+      try {
+        payload = JSON.parse(event.data)
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid event')
+      } catch { onConnectionError(); return }
+      onEvent({ id: event.lastEventId, type, payload })
     })
   }
   source.onerror = onConnectionError

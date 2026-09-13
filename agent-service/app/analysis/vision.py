@@ -3,11 +3,46 @@ import httpx
 from app.runtime.http_client import client as managed_client
 import re
 import time
+import logging
 from app.observability.tracing import traced
 
 from app.config import Settings
 from app.runtime.budget import reserve_model, record_usage
 from app.runtime.java_client import VisionInput, TemporaryInput
+
+
+class VisionServiceError(RuntimeError):
+    """Only allowlisted diagnostics may be exposed to task events."""
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(message)
+
+
+def check_vision_response(response):
+    if response.status_code < 400:
+        return
+    # Read before closing the SSE response. Never log URLs, credentials or provider text.
+    raw = bytearray()
+    for chunk in response.iter_bytes():
+        raw.extend(chunk[:max(0, 16384 - len(raw))])
+        if len(raw) >= 16384:
+            break
+    try:
+        error = json.loads(raw).get('error', {})
+        description = str(error.get('message', '')).lower()
+        provider_code = str(error.get('code', ''))
+    except (ValueError, AttributeError, TypeError):
+        description, provider_code = '', ''
+    safe_code = provider_code if re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', provider_code) else 'unknown'
+    code, message = 'VISION_PROVIDER_ERROR', '视觉模型拒绝请求，请检查模型配置'
+    if any(word in description for word in ('download', 'image url', 'image_url', 'image format', 'image input')):
+        code, message = 'VISION_IMAGE_UNAVAILABLE', '视觉模型无法读取图片，请检查图片格式及临时访问地址'
+    elif response.status_code in (401, 403):
+        code, message = 'VISION_AUTH_FAILED', '视觉模型认证或访问权限不足'
+    elif response.status_code == 429:
+        code, message = 'VISION_RATE_LIMITED', '视觉模型额度不足或请求过于频繁'
+    logging.getLogger('labvision.trace').warning('vision_failed status=%s provider_code=%s category=%s', response.status_code, safe_code, code)
+    raise VisionServiceError(code, message)
 
 
 class VisionAnalyzer:
@@ -144,7 +179,7 @@ class VisionAnalyzer:
                 json={"model":self._settings.vision_model,"temperature":0.1,"max_completion_tokens":800,
                       "stream":True,"stream_options":{"include_usage":True},
                       "messages":[{"role":"system","content":system},{"role":"user","content":content}]}) as response:
-                response.raise_for_status()
+                check_vision_response(response)
                 return read_observations(response,self._settings.vision_model,allowed,emit,stream_check)
         finally:
             if self._client is None:
