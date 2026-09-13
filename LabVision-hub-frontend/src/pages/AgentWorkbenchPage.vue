@@ -42,15 +42,12 @@
               <div v-else-if="!turn.answer" class="waiting">正在检索和核验证据…</div>
               <div v-if="turn.citations.length" class="citations">
                 <div v-for="citation in turn.citations" :key="citation.pictureId" class="citation-card">
-                <router-link :to="`/picture/${citation.pictureId}`" class="citation-card">
+                <router-link :to="`/picture/${citation.pictureId}`" class="citation-title">
                   <span>{{ citation.name || '未命名图片' }}</span>
                   <small>ID {{ citation.pictureId }}{{ citation.category ? ` · ${citation.category}` : '' }}</small>
-                  <small v-if="citation.matchLevel">{{ citation.matchLevel }}匹配（排序信号）</small>
                 </router-link>
                 <AgentCitationDetails :conversation-id="turn.task.conversationId" :picture-id="citation.pictureId" />
-                <details v-if="citation.scoreBreakdown"><summary>查看排序依据</summary>
-                  <p style="overflow-wrap: anywhere">{{ citation.scoreBreakdown }}</p>
-                </details>
+                <AgentRankingDetails v-if="citation.scoreBreakdown" :value="citation.scoreBreakdown" />
                 <a-select style="width: 100%; margin-top: 8px" placeholder="反馈相关性"
                   :value="feedbackValues[turn.task.taskId + ':' + citation.pictureId]"
                   :options="feedbackOptions" @change="value => saveFeedback(turn, citation.pictureId, String(value))" />
@@ -98,6 +95,7 @@
 
 <script setup lang="ts">
 import AgentAnswer from '@/components/AgentAnswer.vue'
+import AgentRankingDetails from '@/components/AgentRankingDetails.vue'
 import AgentCitationDetails from '@/components/AgentCitationDetails.vue'
 import request from '@/request'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -394,7 +392,15 @@ async function scrollToBottom() { await nextTick(); if (messageContainer.value) 
 .agent-message { max-width: 86%; margin-top: 12px; padding: 16px; border: 1px solid #e8edf3; border-radius: 4px 14px 14px 14px; background: #fff; }
 .stage-line { margin-bottom: 10px; color: #657187; font-size: 13px; }.stage-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #36cfc9; }
 .agent-message pre { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.75; color: #273449; }.waiting { color: #8b95a7; }
-.citations { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 14px; }.citation-card { padding: 10px 12px; border-radius: 9px; background: #f2f7ff; color: #28558a; }.citation-card span, .citation-card small { display: block; }.citation-card small { margin-top: 3px; color: #7b8da6; }
+.citations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; margin-top: 24px; align-items: start; }
+.citation-card { min-width: 0; padding: 18px; border: 1px solid #dfe8f2; border-radius: 16px; background: linear-gradient(145deg, #fff, #f7faff); color: #334155; box-shadow: 0 4px 14px #203e6810; transition: border-color .2s, box-shadow .2s; }
+.citation-card:hover { border-color: #a4c8fa; box-shadow: 0 6px 20px #203e681a; }
+.citation-title { display: block; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid #e7edf5; }
+.citation-title span { display: block; font-size: 16px; font-weight: 600; color: #1e4775; line-height: 1.5; }
+.citation-title small { display: block; margin-top: 5px; color: #8492a6; font-size: 11px; overflow-wrap: anywhere; }
+.agent-message { max-width: 100%; padding: 24px; border-radius: 16px; box-shadow: 0 3px 16px #203e6808; }
+.stage-line { padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid #eef2f7; line-height: 1.7; }
+.task-actions { margin-top: 20px; }
 .task-actions { margin-top: 12px; }.composer { padding: 16px 20px; border-top: 1px solid #edf0f4; background: #fff; }.composer-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: #8b95a7; font-size: 12px; }
 @media (max-width: 800px) { .agent-workbench { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }.conversation-panel { max-height: 180px; border-right: 0; border-bottom: 1px solid #edf0f4; }.messages { min-height: 240px; max-height: 60vh; }.composer-actions { align-items: flex-end; gap: 8px; }.user-message, .agent-message { max-width: 100%; } }
 </style>

@@ -1,8 +1,12 @@
 <template>
-  <div>
-    <small v-if="metadata">{{ metadata.spaceId ? `空间 ${metadata.spaceId}` : '公共图库' }} · {{ metadata.width || '?' }} × {{ metadata.height || '?' }}</small>
-    <small v-if="metadata">标签：{{ metadata.tags || '无' }} · 上传时间：{{ formatUploadDate(metadata.createdAt) }}</small>
-    <small v-if="metadata">上传人：{{ uploaderName }} · {{ metadata.format || '未知格式' }}</small>
+  <div class="picture-details">
+    <div v-if="metadata" class="badges"><span>{{ metadata.spaceId ? `空间 ${metadata.spaceId}` : '公共图库' }}</span><span>{{ metadata.format || '未知格式' }}</span></div>
+    <dl v-if="metadata">
+      <div><dt>尺寸</dt><dd>{{ metadata.width || '?' }} × {{ metadata.height || '?' }}</dd></div>
+      <div><dt>上传日期</dt><dd>{{ formatUploadDate(metadata.createdAt) }}</dd></div>
+      <div><dt>上传人</dt><dd>{{ uploaderName }}</dd></div>
+      <div><dt>标签</dt><dd>{{ metadata.tags || '暂无标签' }}</dd></div>
+    </dl>
     <button type="button" :disabled="loading" @click="loadPreview">{{ loading ? '加载中…' : '查看 / 刷新缩略图' }}</button>
     <img v-if="preview" :src="preview" alt="已授权图片的短期缩略图" referrerpolicy="no-referrer" @error="preview = ''" />
     <small v-if="error">{{ error }}</small>
@@ -67,7 +71,13 @@ async function loadPreview() {
 </script>
 
 <style scoped>
-small { display: block; overflow-wrap: anywhere; margin: 4px 0; }
-img { display: block; max-width: 100%; max-height: 160px; object-fit: contain; margin: 8px 0; }
-button { background: none; border: 0; color: #1677ff; cursor: pointer; padding: 4px 0; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badges span { background: #eaf2ff; color: #426a9d; padding: 3px 8px; border-radius: 6px; font-size: 11px; }
+dl { margin: 12px 0; font-size: 12px; line-height: 1.7; }
+dl div { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; margin: 6px 0; }
+dt { color: #8190a3; } dd { margin: 0; color: #43536a; overflow-wrap: anywhere; }
+small { display: block; color: #b45309; margin: 8px 0; }
+img { display: block; width: 100%; max-height: 220px; object-fit: contain; margin: 12px 0; border-radius: 10px; background: #f1f5f9; }
+button { width: 100%; border: 1px solid #cfe0f7; border-radius: 8px; background: #f5f9ff; color: #2467bf; cursor: pointer; padding: 8px; }
+button:hover { background: #eaf2ff; } button:disabled { opacity: .6; cursor: wait; }
 </style>
