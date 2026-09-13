@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import json
 import re
+from app.runtime.routing import general_route, is_search_request, compose_spaces
 import time
 from typing import Protocol
 
@@ -138,6 +139,21 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
+            route = general_route(context.query)
+            if route:
+                phase = route
+                self.java.append_event(signed.task_id, token, "tool_start", json.dumps({"tool": route}))
+                check_active()
+                answer = (compose_spaces(self.java.get_accessible_spaces(signed.task_id, token))
+                          if route == "accessible_spaces" else
+                          "我可以查询你可访问的空间、检索站内图片、分析单张或多张图片，以及统计和比较空间资产。\n\n"
+                          "例如：‘我有权限查看哪些空间’、‘查找河道图片’、‘分析选中的图片’、‘统计当前空间图片数量’。")
+                check_active()
+                self.java.append_event(signed.task_id, token, "tool_result", json.dumps({"tool": route}))
+                publish(answer)
+                self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
+                outcome = "succeeded"
+                return
             if context.temporaryImageId:
                 phase = "TEMPORARY_INPUT"
                 check_active()
@@ -156,6 +172,12 @@ class TaskRunner:
                 and not any(word in context.query for word in ("查找", "搜索", "找相似", "检索")))
             is_space_statistics = (
                 is_space_comparison or (not is_single_analysis and not is_group_analysis and SpaceStatisticsComposer.matches(context.query)))
+            if not (is_temporary_analysis or is_single_analysis or is_group_analysis or is_space_statistics
+                    or is_search_request(context.query)):
+                publish("请说明你希望查询空间、检索图片、分析图片还是统计资产。当前问题未明确需要图片检索，我不会自动搜索或返回无关图片。")
+                self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
+                outcome = "succeeded"
+                return
             tool_name = (
                 "space_comparison" if is_space_comparison else
                 "picture_analysis" if is_single_analysis else

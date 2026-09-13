@@ -16,6 +16,17 @@ import java.util.List;
 @RequestMapping("/agent/internal/tasks")
 public class AgentInternalController {
     @Resource private AgentInternalTaskService internal;
+    @Resource private com.yupi.yupicture.application.agent.AgentAccessService access;
+
+    @GetMapping("/{id}/spaces/accessible")
+    public BaseResponse<List<Map<String,Object>>> accessibleSpaces(@PathVariable String id,
+            @RequestHeader("Authorization") String authorization) {
+        Map<String,Object> context = internal.context(authorization, id);
+        com.yupi.yupicture.domain.user.entity.User user = new com.yupi.yupicture.domain.user.entity.User();
+        user.setId(Long.valueOf(context.get("userId").toString()));
+        user.setUserRole((String) context.get("userRole"));
+        return ResultUtils.success(access.viewableSpaces(user));
+    }
     @Resource private AgentInternalPictureSearchService pictureSearch;
     @Resource private AgentInternalPictureDetailsService pictureDetails;
     @Resource private AgentInternalPictureVisionService pictureVision;

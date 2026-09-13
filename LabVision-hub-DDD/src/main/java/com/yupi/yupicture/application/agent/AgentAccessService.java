@@ -35,6 +35,22 @@ public class AgentAccessService {
         return result;
     }
 
+    public List<Map<String,Object>> viewableSpaces(User user) {
+        List<Map<String,Object>> result = new ArrayList<>();
+        for (Long id : allViewableSpaceIds(user)) {
+            Space space = spaceRepository.getById(id);
+            if (space == null) continue;
+            List<String> granted = authManager.getPermissionList(space, user);
+            if (granted == null || !granted.contains(SpaceUserPermissionConstant.PICTURE_VIEW)) continue;
+            Map<String,Object> item = new LinkedHashMap<>();
+            item.put("spaceName", space.getSpaceName() == null ? "未命名空间" : space.getSpaceName());
+            item.put("spaceType", space.getSpaceType());
+            item.put("permissions", new ArrayList<>(granted));
+            result.add(item);
+        }
+        return result;
+    }
+
     public Map<String, Object> resolve(User user, List<Long> spaceIds) {
         if (user == null || user.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);

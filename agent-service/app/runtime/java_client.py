@@ -49,6 +49,13 @@ class PictureFeatures(BaseModel):
     indexedAt: str | None = None
 
 
+class AccessibleSpace(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    spaceName: str
+    spaceType: int | None = None
+    permissions: list[str]
+
+
 class PictureCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -111,6 +118,12 @@ class JavaTaskClient:
         data = self._request(
             "GET", f"/agent/internal/tasks/{task_id}/spaces/summary", token)
         return SpaceStatistics.model_validate(data)
+
+    def get_accessible_spaces(self, task_id: str, token: str) -> list[AccessibleSpace]:
+        data = self._request("GET", f"/agent/internal/tasks/{task_id}/spaces/accessible", token)
+        if not isinstance(data, list) or len(data) > 50:
+            raise JavaGatewayError("invalid accessible spaces response")
+        return [AccessibleSpace.model_validate(item) for item in data]
 
     def update_state(
         self,
