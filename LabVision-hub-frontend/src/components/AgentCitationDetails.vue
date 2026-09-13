@@ -1,6 +1,6 @@
 <template>
   <div class="picture-details">
-    <div v-if="metadata" class="badges"><span>{{ metadata.spaceId ? `空间 ${metadata.spaceId}` : '公共图库' }}</span><span>{{ metadata.format || '未知格式' }}</span></div>
+    <div v-if="metadata" class="badges"><span>{{ spaceName }}</span><span>{{ metadata.format || '未知格式' }}</span></div>
     <dl v-if="metadata">
       <div><dt>尺寸</dt><dd>{{ metadata.width || '?' }} × {{ metadata.height || '?' }}</dd></div>
       <div><dt>上传日期</dt><dd>{{ formatUploadDate(metadata.createdAt) }}</dd></div>
@@ -22,6 +22,23 @@ const preview = ref('')
 const error = ref('')
 const loading = ref(false)
 const uploaderName = ref('加载中…')
+const spaceName = ref('空间名称加载中…')
+async function loadSpaceName(spaceId?: string) {
+  if (!spaceId) {
+    spaceName.value = '公共图库'
+    return
+  }
+  try {
+    // 仅在图片元数据通过当前会话权限校验后读取空间名称，保留 bigint 字符串。
+    const response = await request('/api/space/get/vo', { params: { id: spaceId } })
+    if (!alive) return
+    spaceName.value = response.data.code === 0
+      ? response.data.data?.spaceName?.trim() || '未命名空间'
+      : '空间名称暂不可用'
+  } catch {
+    if (alive) spaceName.value = '空间名称暂不可用'
+  }
+}
 function formatUploadDate(value?: string) {
   if (!value) return '未知'
   const date = new Date(value)
@@ -40,6 +57,7 @@ onMounted(async () => {
     if (response.data.code !== 0) throw new Error('图片已不可访问')
     if (!alive) return
     metadata.value = response.data.data?.[0]
+    void loadSpaceName(metadata.value?.spaceId)
     uploaderName.value = '未知用户'
     const uploaderId = metadata.value?.uploaderId
     if (uploaderId) {
@@ -72,7 +90,7 @@ async function loadPreview() {
 
 <style scoped>
 .badges { display: flex; flex-wrap: wrap; gap: 6px; }
-.badges span { background: #eaf2ff; color: #426a9d; padding: 3px 8px; border-radius: 6px; font-size: 11px; }
+.badges span { background: #eaf2ff; color: #426a9d; padding: 3px 8px; border-radius: 6px; font-size: 11px; max-width: 100%; overflow-wrap: anywhere; }
 dl { margin: 12px 0; font-size: 12px; line-height: 1.7; }
 dl div { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; margin: 6px 0; }
 dt { color: #8190a3; } dd { margin: 0; color: #43536a; overflow-wrap: anywhere; }
