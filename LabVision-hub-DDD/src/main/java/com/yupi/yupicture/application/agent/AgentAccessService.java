@@ -46,6 +46,11 @@ public class AgentAccessService {
             item.put("spaceName", space.getSpaceName() == null ? "未命名空间" : space.getSpaceName());
             item.put("spaceType", space.getSpaceType());
             item.put("permissions", new ArrayList<>(granted));
+            // 空间实体维护的实时用量计数；未知值保留 null，不冒充零用量。
+            item.put("totalCount", space.getTotalCount());
+            item.put("totalSize", space.getTotalSize());
+            item.put("maxCount", space.getMaxCount());
+            item.put("maxSize", space.getMaxSize());
             result.add(item);
         }
         return result;

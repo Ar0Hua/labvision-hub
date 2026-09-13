@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import json
 import re
-from app.runtime.routing import general_route, is_search_request, compose_spaces
+from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
 import time
 from typing import Protocol
 
@@ -144,7 +144,9 @@ class TaskRunner:
                 phase = route
                 self.java.append_event(signed.task_id, token, "tool_start", json.dumps({"tool": route}))
                 check_active()
-                answer = (compose_spaces(self.java.get_accessible_spaces(signed.task_id, token))
+                answer = (compose_space_usage(self.java.get_accessible_spaces(signed.task_id, token))
+                          if route == "accessible_space_usage" else
+                          compose_spaces(self.java.get_accessible_spaces(signed.task_id, token))
                           if route == "accessible_spaces" else
                           "我可以查询你可访问的空间、检索站内图片、分析单张或多张图片，以及统计和比较空间资产。\n\n"
                           "例如：‘我有权限查看哪些空间’、‘查找河道图片’、‘分析选中的图片’、‘统计当前空间图片数量’。")

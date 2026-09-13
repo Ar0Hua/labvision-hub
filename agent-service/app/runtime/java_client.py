@@ -54,6 +54,10 @@ class AccessibleSpace(BaseModel):
     spaceName: str
     spaceType: int | None = None
     permissions: list[str]
+    totalCount: int | None = Field(default=None, ge=0)
+    totalSize: int | None = Field(default=None, ge=0)
+    maxCount: int | None = Field(default=None, ge=0)
+    maxSize: int | None = Field(default=None, ge=0)
 
 
 class PictureCandidate(BaseModel):
