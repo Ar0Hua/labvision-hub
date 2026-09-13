@@ -11,6 +11,47 @@ def event(content):
     return 'data: '+json.dumps({'choices':[{'delta':{'content':content,'reasoning_content':'NEVER PUBLISH'}}]})+'\n\n'
 
 class StreamingObservationTests(unittest.TestCase):
+    def test_unanchored_paragraphs_are_skipped_without_losing_verified_answer(self):
+        emitted = []
+        class Response:
+            def iter_lines(self):
+                yield event('观察摘要\n\n').strip()
+                yield event('pictureId=1 可见河道\n\n').strip()
+                assert emitted == ['pictureId=1 可见河道\n\n']
+                yield event('综上，其他内容无法确认。\n\n').strip()
+                yield 'data: [DONE]'
+        result = read_observations(Response(), 'model', ['1'], emitted.append, lambda: None)
+        self.assertEqual(result, 'pictureId=1 可见河道\n\n')
+        self.assertNotIn('观察摘要', ''.join(emitted))
+        self.assertNotIn('综上', ''.join(emitted))
+        self.assertIn('2 段', emitted[-1])
+
+    def test_only_unanchored_text_is_not_a_successful_analysis(self):
+        class Response:
+            def iter_lines(self):
+                return iter([event('没有任何可核验图片引用').strip(), 'data: [DONE]'])
+        emitted = []
+        with self.assertRaisesRegex(ValueError, 'no verified visual observations'):
+            read_observations(Response(), 'model', ['1'], emitted.append, lambda: None)
+        self.assertEqual(emitted, [])
+
+    def test_unanchored_urls_and_unknown_ids_still_fail_closed(self):
+        for invalid in ['https://private.example/image', 'pictureId=999 非法图片']:
+            class Response:
+                def iter_lines(self):
+                    return iter([event('pictureId=1 合法\n\n').strip(), event(invalid).strip(), 'data: [DONE]'])
+            emitted = []
+            with self.assertRaises(ValueError):
+                read_observations(Response(), 'model', ['1'], emitted.append, lambda: None)
+            self.assertEqual(emitted, ['pictureId=1 合法\n\n'])
+
+    def test_temporary_image_observation_does_not_require_picture_id(self):
+        class Response:
+            def iter_lines(self):
+                return iter([event('临时图片可见河道').strip(), 'data: [DONE]'])
+        emitted = []
+        self.assertEqual(read_observations(Response(), 'model', [], emitted.append, lambda: None), '临时图片可见河道')
+
     def test_incremental_paragraph_and_hidden_reasoning(self):
         emitted=[]
         class Response:

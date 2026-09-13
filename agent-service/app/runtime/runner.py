@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import re
 import time
 from typing import Protocol
 
@@ -451,7 +452,8 @@ class TaskRunner:
             observation = self.vision.analyze_stream(context.query, inputs, emit, check_active)
             if observation:
                 observations.append(observation)
-                successful_ids.extend(p.pictureId for p in inputs)
+                mentioned = set(re.findall(r"(?:pictureId|图片\s*ID)\s*[=:：]\s*(\d+)", observation, re.I))
+                successful_ids.extend(p.pictureId for p in inputs if p.pictureId in mentioned)
         check_active()
         summary = self.vision.summarize(context.query, observations, successful_ids)
         check_active()

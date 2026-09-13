@@ -1,7 +1,13 @@
 """Bounded provider SSE parsing. Never publish reasoning or unchecked citations."""
 import json
 import re
+import logging
 from app.runtime.budget import record_usage
+
+
+class ObservationValidationError(ValueError):
+    """Contains only a fixed reason code, never model output."""
+    pass
 
 
 def read_observations(response, model, allowed_ids, emit, check_active):
@@ -10,14 +16,21 @@ def read_observations(response, model, allowed_ids, emit, check_active):
     total = 0
     done = False
     usage_seen = False
+    skipped = 0
 
     def flush(text):
+        nonlocal skipped
         if not text.strip():
             return
         ids = re.findall(r"(?:pictureId|图片\s*ID)\s*[=:：]\s*(\d+)", text, re.I)
         if (any(value not in allowed_ids for value in ids) or
-                (allowed_ids and not ids) or re.search(r"https?://|/picture/|\]\(", text, re.I)):
-            raise ValueError("unverified visual citation")
+                re.search(r"https?://|/picture/|\]\(", text, re.I)):
+            raise ObservationValidationError("unverified visual citation")
+        if allowed_ids and not ids:
+            # An unanchored heading/summary must not invalidate already verified
+            # observations, nor be silently attributed to an arbitrary image.
+            skipped += 1
+            return
         check_active()
         published.append(text)
         emit(text)
@@ -54,4 +67,11 @@ def read_observations(response, model, allowed_ids, emit, check_active):
     if not done:
         raise ValueError("incomplete provider stream")
     flush(buffer)
+    if allowed_ids and not published:
+        raise ObservationValidationError("no verified visual observations")
+    if skipped:
+        check_active()
+        logging.getLogger('labvision.trace').info('visual_paragraphs_skipped count=%s', skipped)
+        # Application-authored notice, excluded from model summaries and coverage.
+        emit(f"\n\n提示：本批次有 {skipped} 段补充文字未标明图片引用，已略过；以下分析仅包含通过引用校验的内容。\n\n")
     return "".join(published)
