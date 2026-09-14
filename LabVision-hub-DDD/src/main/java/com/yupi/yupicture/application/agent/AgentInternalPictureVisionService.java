@@ -60,6 +60,8 @@ public class AgentInternalPictureVisionService {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片临时访问地址生成失败");
             }
             vision.put("expiresInSeconds", URL_TTL_SECONDS);
+            Date version = picture.getUpdateTime() != null ? picture.getUpdateTime() : picture.getCreateTime();
+            vision.put("sourceVersion", version == null ? null : Long.toString(version.getTime()));
             result.add(vision);
         }
         return result;

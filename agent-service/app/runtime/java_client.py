@@ -80,6 +80,7 @@ class PictureCandidate(BaseModel):
 
 
 class VisionInput(PictureCandidate):
+    sourceVersion: str | None = None
     temporaryUrl: str
     expiresInSeconds: int = Field(ge=30, le=300)
 

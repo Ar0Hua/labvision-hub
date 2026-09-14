@@ -3,6 +3,7 @@ import json
 import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
 from app.runtime.planner import TaskPlanner
+from app.runtime.visual_checkpoint import VisualBatchCheckpoint
 import time
 from typing import Protocol
 
@@ -68,6 +69,7 @@ class TaskRunner:
     model_prices_json: str = "{}"
     image_token_reservation: int = 8192
     planner: TaskPlanner | None = None
+    visual_checkpoint: VisualBatchCheckpoint | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -84,6 +86,7 @@ class TaskRunner:
             settings.max_tool_calls, settings.max_model_calls, settings.max_output_tokens,
             settings.max_input_tokens, settings.max_task_cost, settings.model_prices_json, settings.image_token_reservation,
             planner=TaskPlanner(settings),
+            visual_checkpoint=VisualBatchCheckpoint(settings),
         )
 
     @traced("agent.task")
@@ -495,7 +498,27 @@ class TaskRunner:
             if not inputs or any(p.pictureId not in batch for p in inputs):
                 raise ValueError("visual batch unavailable")
             emit(f"\n批次 {offset//size+1}：\n")
-            observation = self.vision.analyze_stream(context.query, inputs, emit, check_active)
+            # Authorization above is mandatory even on a resumed task. Signed URLs are never cached.
+            cache = self.visual_checkpoint
+            key = cache.key(context, inputs) if cache else None
+            saved = cache.load(key) if cache else None
+            if saved:
+                check_active()
+                observation = saved['observation']
+                for delta in saved['deltas']:
+                    check_active()
+                    emit(delta)
+                self.java.append_event(signed.task_id, token, 'tool_result', json.dumps({
+                    'tool':'visual_batch_resume','batch':offset//size+1}))
+            else:
+                deltas = []
+                def record(delta):
+                    deltas.append(delta)
+                    emit(delta)
+                observation = self.vision.analyze_stream(context.query, inputs, record, check_active)
+                check_active()
+                if cache and observation:
+                    cache.save(key, observation, deltas)
             if observation:
                 observations.append(observation)
                 mentioned = set(re.findall(r"(?:pictureId|图片\s*ID)\s*[=:：]\s*(\d+)", observation, re.I))
