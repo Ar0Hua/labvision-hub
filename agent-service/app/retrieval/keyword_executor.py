@@ -3,7 +3,7 @@ import json
 from typing import Callable
 
 from app.runtime.java_client import PictureCandidate, TaskContext
-from app.retrieval.intent import IntentParser
+from app.retrieval.intent import IntentParser, SearchIntent
 from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.ordering import order_candidates
 from app.retrieval.visual_filters import matches_visual
@@ -41,8 +41,10 @@ class KeywordSearchExecutor:
         self, context: TaskContext, search: SearchPictures, authorize: AuthorizePictures,
         check_active: CheckActive, previous_intent: dict | None,
         previous_result_ids: list[str],
+        frozen_intent: dict | None = None,
     ) -> ExecutionResult:
-        intent = self._parser.parse(context.query, previous_intent, previous_result_ids)
+        intent = (SearchIntent.model_validate(frozen_intent) if frozen_intent is not None
+                  else self._parser.parse(context.query, previous_intent, previous_result_ids))
         from app.runtime.scope import validate_scope, matches_scope
         validate_scope(context, context.searchScope)
         raw_authorize = authorize

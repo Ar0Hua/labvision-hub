@@ -3,6 +3,7 @@ import json
 import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
 from app.runtime.planner import TaskPlanner, TaskPlan
+from app.runtime.composite import CompositeWorkflow
 from app.runtime.task_checkpoint import TaskStepStore
 from app.runtime.scope import resolve_scope
 from app.runtime.visual_checkpoint import VisualBatchCheckpoint
@@ -73,6 +74,7 @@ class TaskRunner:
     planner: TaskPlanner | None = None
     visual_checkpoint: VisualBatchCheckpoint | None = None
     task_checkpoint: TaskStepStore | None = None
+    composite_executor: KeywordSearchExecutor | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -91,6 +93,7 @@ class TaskRunner:
             planner=TaskPlanner(settings),
             visual_checkpoint=VisualBatchCheckpoint(settings),
             task_checkpoint=TaskStepStore(settings),
+            composite_executor=executor,
         )
 
     @traced("agent.task")
@@ -163,7 +166,7 @@ class TaskRunner:
                     plan = self.planner.plan(context, check_active)
                     check_active()
                     if store and plan.task != 'clarify':store.save(key,plan.model_dump())
-            if plan and plan.task == "search" and plan.scopeName:
+            if plan and plan.task in ("search", "search_group_analysis") and plan.scopeName:
                 try:
                     spaces = [] if plan.scopeName in ("公共图库", "全部授权空间") else self.java.get_accessible_spaces(signed.task_id, token)
                     context.searchScope = resolve_scope(context, plan.scopeName, spaces)
@@ -219,7 +222,7 @@ class TaskRunner:
             if plan:
                 is_temporary_analysis = plan.task == "temporary_image_analysis"
                 is_space_comparison = plan.task == "space_comparison"
-                is_group_analysis = plan.task == "picture_group_analysis"
+                is_group_analysis = plan.task in ("picture_group_analysis", "search_group_analysis")
                 is_single_analysis = plan.task == "picture_analysis"
                 is_space_statistics = plan.task in ("space_statistics", "space_comparison")
             if not (is_temporary_analysis or is_single_analysis or is_group_analysis or is_space_statistics
@@ -279,6 +282,28 @@ class TaskRunner:
                     "category": picture.category,
                 }], 1)
                 tool_result = {"tool": tool_name, "count": 1}
+            elif plan and plan.task == 'search_group_analysis':
+                def composite_event(stage, details):
+                    nonlocal phase
+                    phase = stage
+                    check_active()
+                    self.java.append_event(signed.task_id, token, 'tool_result', json.dumps({
+                        'tool': 'composite_workflow', 'stage': stage, **details}, ensure_ascii=False))
+                search = lambda text, category, tags, limit, filters: self.java.search_pictures(
+                    signed.task_id, token, search_text=text, category=category, tags=tags,
+                    limit=limit, filters=filters)
+                authorize = lambda ids: self.java.authorize_pictures(signed.task_id, token, ids)
+                def supplement(intent):
+                    if self.composite_executor is None:
+                        raise ExecutorUnavailable('composite retrieval is not configured')
+                    return self.composite_executor.execute_with_state(
+                        context, search, authorize, check_active, None, [], frozen_intent=intent)
+                composite = CompositeWorkflow().execute(context, plan,
+                    lambda: self.executor.execute(context, search, authorize, check_active),
+                    supplement, authorize, check_active, composite_event)
+                result, selected = composite.result, composite.pictures
+                is_group_analysis = len(selected) >= 2
+                tool_result = {'tool': 'composite_workflow', 'count': len(selected), 'rounds': composite.rounds}
             elif is_group_analysis:
                 selected = self.java.authorize_pictures(
                     signed.task_id, token, context.examplePictureIds)

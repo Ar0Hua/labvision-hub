@@ -80,6 +80,7 @@ class LangGraphWorkflow:
                 raise ValueError('checkpoint citations are no longer authorized')
         if completed:
             check_active()
+            context.searchScope = saved.values.get('search_scope')
             # Retrieval snapshot of the same task, not a new search turn.
             return ExecutionResult(answer=saved.values['answer'],citations=saved.values.get('citations',[]),
                                    candidate_count=saved.values.get('candidate_count',0),
@@ -87,6 +88,7 @@ class LangGraphWorkflow:
         output = graph.invoke(
             None if resume else {"task_id": context.taskId, "query": context.query}, config,
         )
+        context.searchScope = output.get('search_scope')
         return ExecutionResult(
             answer=output["answer"],
             citations=output.get("citations", []),

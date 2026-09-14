@@ -421,7 +421,7 @@ function shortId(value: string) { return value.slice(0, 8) }
 function formatTime(value?: string) { return value ? new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '刚刚' }
 function statusText(value: string) { return ({ PENDING: '排队中', RUNNING: '执行中', SUCCEEDED: '已完成', FAILED: '失败', CANCELLED: '已停止' } as Record<string, string>)[value] || value }
 function statusColor(value: string) { return ({ RUNNING: 'processing', SUCCEEDED: 'success', FAILED: 'error', CANCELLED: 'default' } as Record<string, string>)[value] || 'warning' }
-function stageText(value: string) { return ({ QUEUED: '任务已排队', INITIALIZING: '正在初始化', PLANNING: '正在理解需求', RETRIEVED: '已完成候选检索', COMPLETED: '分析完成', CANCELLED: '任务已停止' } as Record<string, string>)[value] || value }
+function stageText(value: string) { return ({ QUEUED: '任务已排队', INITIALIZING: '正在初始化', PLANNING: '正在理解需求', RETRIEVE: '正在检索图片', FILTER: '正在筛选与复核权限', GROUP_ANALYSIS: '正在分组分析', EVIDENCE_CHECK: '正在核验证据', SUPPLEMENT: '证据不足，正在补充检索', RETRIEVED: '已完成候选检索', COMPLETED: '分析完成', CANCELLED: '任务已停止' } as Record<string, string>)[value] || value }
 async function scrollToBottom() { await nextTick(); if (messageContainer.value) messageContainer.value.scrollTop = messageContainer.value.scrollHeight }
 </script>
 
