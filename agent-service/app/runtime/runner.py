@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
+from app.runtime.planner import TaskPlanner
 import time
 from typing import Protocol
 
@@ -66,6 +67,7 @@ class TaskRunner:
     max_task_cost: str = "0"
     model_prices_json: str = "{}"
     image_token_reservation: int = 8192
+    planner: TaskPlanner | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -81,6 +83,7 @@ class TaskRunner:
             semantic,
             settings.max_tool_calls, settings.max_model_calls, settings.max_output_tokens,
             settings.max_input_tokens, settings.max_task_cost, settings.model_prices_json, settings.image_token_reservation,
+            planner=TaskPlanner(settings),
         )
 
     @traced("agent.task")
@@ -139,7 +142,19 @@ class TaskRunner:
                 signed.task_id, token, status="RUNNING", stage="INITIALIZING"
             )
             running = True
-            route = general_route(context.query)
+            phase = "PLANNING"
+            plan = self.planner.plan(context, check_active) if self.planner else None
+            if plan:
+                self.java.append_event(signed.task_id, token, "tool_result", json.dumps({
+                    "tool": "task_planner", "version": TaskPlanner.VERSION, "plan": plan.model_dump()}))
+                if plan.task == "clarify":
+                    publish("请先选择目标空间再提问，我不会自动扩大检索范围。" if plan.needsScopeSelection else
+                            "请明确要查询的空间、图片或统计目标；若要分析图片，请先选择图片。当前不执行批量修改等写操作。")
+                    publish_usage()
+                    self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
+                    outcome = "succeeded"
+                    return
+            route = (plan.task if plan.task in ("accessible_spaces", "accessible_space_usage", "capabilities") else None) if plan else general_route(context.query)
             if route:
                 phase = route
                 self.java.append_event(signed.task_id, token, "tool_start", json.dumps({"tool": route}))
@@ -153,6 +168,7 @@ class TaskRunner:
                 check_active()
                 self.java.append_event(signed.task_id, token, "tool_result", json.dumps({"tool": route}))
                 publish(answer)
+                publish_usage()
                 self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
                 outcome = "succeeded"
                 return
@@ -174,8 +190,14 @@ class TaskRunner:
                 and not any(word in context.query for word in ("查找", "搜索", "找相似", "检索")))
             is_space_statistics = (
                 is_space_comparison or (not is_single_analysis and not is_group_analysis and SpaceStatisticsComposer.matches(context.query)))
+            if plan:
+                is_temporary_analysis = plan.task == "temporary_image_analysis"
+                is_space_comparison = plan.task == "space_comparison"
+                is_group_analysis = plan.task == "picture_group_analysis"
+                is_single_analysis = plan.task == "picture_analysis"
+                is_space_statistics = plan.task in ("space_statistics", "space_comparison")
             if not (is_temporary_analysis or is_single_analysis or is_group_analysis or is_space_statistics
-                    or is_search_request(context.query)):
+                    or (plan.task == "search" if plan else is_search_request(context.query))):
                 publish("请说明你希望查询空间、检索图片、分析图片还是统计资产。当前问题未明确需要图片检索，我不会自动搜索或返回无关图片。")
                 self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
                 outcome = "succeeded"
@@ -290,7 +312,7 @@ class TaskRunner:
                 result = self._add_group_similarity(
                     result, selected, context, signed, token, check_active)
                 publish(result.answer)
-            if not is_space_statistics and not is_temporary_analysis:
+            if not is_space_statistics and not is_temporary_analysis and (plan is None or plan.visualAnalysis):
                 phase = "VISUAL_ANALYSIS"
                 result = self._add_visual_analysis(
                     result, context, signed, token, check_active, publish)
