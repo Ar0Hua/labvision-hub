@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import uuid
+from pathlib import Path
 import pytest
 
 
@@ -11,6 +12,7 @@ def test_completed_step_survives_process_exit():
     from redis import Redis
     url=os.environ['LABVISION_TEST_REDIS_URL']
     task=uuid.uuid4().hex
+    service_dir=Path(__file__).resolve().parents[1]
     # Separate interpreter processes ensure the observed value is not process-local memory.
     script='''
 import os,sys
@@ -31,11 +33,11 @@ else:
     assert store.load(key)=={'task':'search'}
     print('RESTORED')
 '''
-    written=subprocess.run([sys.executable,'-c',script,task,'write'],capture_output=True,text=True,check=True,timeout=20)
+    written=subprocess.run([sys.executable,'-c',script,task,'write'],cwd=service_dir,capture_output=True,text=True,check=True,timeout=20)
     key=written.stdout.strip()
     assert key.startswith('labvision:task-step:')
     try:
-        read=subprocess.run([sys.executable,'-c',script,task,'read'],capture_output=True,text=True,check=True,timeout=20)
+        read=subprocess.run([sys.executable,'-c',script,task,'read'],cwd=service_dir,capture_output=True,text=True,check=True,timeout=20)
         assert read.stdout.strip()=='RESTORED'
         with Redis.from_url(url) as client:assert 0<client.ttl(key)<=60
     finally:
