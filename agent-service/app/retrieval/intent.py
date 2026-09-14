@@ -15,6 +15,15 @@ class SearchIntent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     searchText: str = Field(min_length=1, max_length=100)
+    retrievalProfile: Literal['auto','balanced','text','visual','mixed'] = 'auto'
+    metadataTerms: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator('metadataTerms')
+    @classmethod
+    def validate_metadata_terms(cls, values):
+        if any(not v.strip() or len(v)>32 for v in values):
+            raise ValueError('invalid metadata term')
+        return list(dict.fromkeys(v.strip() for v in values))
     category: str | None = Field(default=None, max_length=32)
     tags: list[str] = Field(default_factory=list, max_length=5)
     limit: int = Field(default=10, ge=1, le=20)
@@ -103,7 +112,11 @@ class IntentParser:
         "若本轮只改变空间范围，应继续使用previousIntent中的检索主题；不得编造上轮图片序号。"
         "JSON 字段必须且只能是 searchText、category、tags、limit、formats、createdAfter、"
         "createdBefore、minWidth、minHeight、maxSizeBytes、sort、reset、examplePictureIds、"
-        "excludePictureIds、uploaderId、minAspectRatio、maxAspectRatio、targetColor、colorTolerance、brightness。"
+        "excludePictureIds、uploaderId、minAspectRatio、maxAspectRatio、targetColor、colorTolerance、brightness、retrievalProfile、metadataTerms。"
+        "retrievalProfile为text（地点、地区、名称、项目、编号）、visual（构图、视角、画面相似）、mixed（文本限制加视觉偏好）、balanced（一般主题）或auto。"
+        "metadataTerms最多5个必须在人工元数据出现的原文词，每个不超过32字；如查询苏州拍摄的河道图填苏州，不得把河道、构图等视觉主题当作地点。"
+        "多个词为同时满足；多地点任选等无法表达的条件不要填成同时满足。不从图片猜地点，不添加原文或previousIntent没有的地点。"
+        "项目空间名由服务端scope解析，不把空间名称重复放入metadataTerms。未指定硬文本限制时metadataTerms=[]。"
         "targetColor 用 #RRGGBB 或 null，colorTolerance 是每个RGB通道容差0到255、默认48；"
         "brightness 为 dark（均值<50）、normal（50到210）、bright（>210）或null。"
         "宽高比是宽除以高，范围0.01到100。uploaderId 为明确指定的上传人 ID 字符串或 null，不得从姓名猜测 ID。searchText 必填且不超过100字；"
@@ -187,6 +200,9 @@ class IntentParser:
                 value for value in intent.excludePictureIds if value in allowed_picture_ids
             ]
             intent.reset = False
+            allowed_text = query.casefold() + ' ' + ' '.join((safe_previous or {}).get('metadataTerms',[])).casefold()
+            if any(term.casefold() not in allowed_text for term in intent.metadataTerms):
+                return fallback
             return intent
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, ValidationError):
             return fallback

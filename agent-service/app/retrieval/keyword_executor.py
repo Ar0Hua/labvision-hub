@@ -9,6 +9,7 @@ from app.retrieval.ordering import order_candidates
 from app.retrieval.visual_filters import matches_visual
 from app.retrieval.rerank import rerank, score_json
 from app.retrieval.semantic import SemanticRetriever
+from app.retrieval.strategy import select_profile, weights_for, matches_metadata, REASONS
 
 
 SearchPictures = Callable[[str, str | None, list[str], int, dict], list[PictureCandidate]]
@@ -51,6 +52,12 @@ class KeywordSearchExecutor:
         authorize = lambda ids: [p for p in raw_authorize(ids) if matches_scope(p, context.searchScope)]
         if context.examplePictureIds:
             intent.examplePictureIds = context.examplePictureIds
+        if frozen_intent is None:
+            intent.retrievalProfile = select_profile(intent, context.query,
+                bool(intent.examplePictureIds or context.temporaryImage))
+        else:
+            intent.retrievalProfile = select_profile(intent)
+        policy = weights_for(intent)
         check_active()
         filters = {
             "formats": intent.formats,
@@ -78,6 +85,14 @@ class KeywordSearchExecutor:
                 intent.searchText, intent.category, intent.tags, intent.limit, filters)
             if picture.pictureId not in excluded and matches_scope(picture, context.searchScope)
         ]
+        # Fetch literal metadata matches as well; a broad semantic topic must not
+        # consume the entire SQL candidate budget before location filtering.
+        if intent.metadataTerms:
+            check_active()
+            literal = search(intent.metadataTerms[0], intent.category, intent.tags, 20, filters)
+            keyword = list({p.pictureId:p for p in [*literal,*keyword]
+                            if p.pictureId not in excluded and matches_scope(p,context.searchScope)
+                            and matches_metadata(p,intent)}.values())
         check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
         channels = {"keyword": [picture.pictureId for picture in keyword]}
@@ -88,7 +103,7 @@ class KeywordSearchExecutor:
                 scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
             if context.searchScope not in (None, 'all'):
                 scope_key = context.searchScope
-            if not context.temporaryImage and not intent.examplePictureIds:
+            if policy['image'] > 0 and not context.temporaryImage and not intent.examplePictureIds:
                 try:
                     image_ids = self._semantic.search_visual_text(intent.searchText, scope_key, 20, filters)
                     check_active()
@@ -98,7 +113,7 @@ class KeywordSearchExecutor:
                     channels["image"] = [p.pictureId for p in image_candidates]
                 except Exception:
                     check_active()
-            if context.temporaryImage:
+            if policy['image'] > 0 and context.temporaryImage:
                 try:
                     image_ids = self._semantic.search_by_image_data(context.temporaryImage.dataUrl, scope_key, 20, filters)
                     check_active()
@@ -118,7 +133,7 @@ class KeywordSearchExecutor:
                 channels["vector"] = [picture.pictureId for picture in authorized]
             except Exception:
                 pass
-            if intent.examplePictureIds:
+            if policy['image'] > 0 and intent.examplePictureIds:
                 try:
                     example_candidates = authorize(intent.examplePictureIds)
                     allowed_examples = {picture.pictureId for picture in example_candidates}
@@ -137,7 +152,7 @@ class KeywordSearchExecutor:
                     channels["image"] = [picture.pictureId for picture in image_candidates]
                 except Exception:
                     pass
-        weights = {name: (1.5 if name == "image" else 1.0) for name in channels}
+        weights = {name: policy[name] for name in channels}
         ranking = reciprocal_rank_fusion(
             channels, top_k=50, weights=weights
         )
@@ -161,6 +176,7 @@ class KeywordSearchExecutor:
                           and (intent.maxAspectRatio is None or p.width / p.height <= intent.maxAspectRatio)]
         check_active()
         candidates = [p for p in candidates if matches_visual(p, intent)]
+        candidates = [p for p in candidates if matches_metadata(p, intent)]
         candidates, scores = rerank(candidates, channels, intent)
         candidates = order_candidates(candidates, intent.sort)
         seen_hashes = set()
@@ -224,6 +240,9 @@ class KeywordSearchExecutor:
             lines.append(f"已折叠 {collapsed} 项索引图像字节相同的结果；不等同于原始文件相同。")
         if len(candidates) > 5:
             lines.append(f"另有 {len(candidates) - 5} 项结果，可继续缩小关键词范围。")
+        lines.append('检索策略：' + REASONS[intent.retrievalProfile] + '。')
+        if intent.metadataTerms:
+            lines.append('人工元数据必须包含：' + '、'.join(intent.metadataTerms) + '；文本提及不等同于已核实拍摄地点。')
         return ExecutionResult("\n".join(lines), citations, len(candidates),
                                intent.model_dump(mode="json"))
 

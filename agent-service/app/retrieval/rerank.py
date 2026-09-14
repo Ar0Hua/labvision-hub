@@ -4,15 +4,16 @@ import re
 
 from app.runtime.java_client import PictureCandidate
 from app.retrieval.intent import SearchIntent
+from app.retrieval.strategy import weights_for, select_profile, REASONS, VERSION as POLICY_VERSION
 
 
-VERSION = "rank-metadata-quality-v1"
+VERSION = "rank-intent-metadata-quality-v2"
 
 
 def rerank(candidates: list[PictureCandidate], channels: dict[str, list[str]], intent: SearchIntent):
     ranks = {name: {pid: i + 1 for i, pid in enumerate(dict.fromkeys(ids))}
              for name, ids in channels.items()}
-    weights = {"image": .45, "vector": .25, "keyword": .15, "metadata": .10, "quality": .05}
+    weights = weights_for(intent)
     active = {key: value for key, value in weights.items() if key in {"metadata", "quality"} or ranks.get(key)}
     denominator = sum(active.values())
     breakdown = {}
@@ -37,6 +38,8 @@ def rerank(candidates: list[PictureCandidate], channels: dict[str, list[str]], i
         score = sum(signals[key] * weight for key, weight in active.items()) / denominator
         breakdown[pid] = {
             "version": VERSION, "basis": "reciprocal-channel-rank; not cosine or probability",
+            "strategyVersion": POLICY_VERSION, "retrievalProfile": select_profile(intent),
+            "strategyReason": REASONS[select_profile(intent)],
             "visualScore": signals["image"], "textScore": signals["vector"],
             "keywordScore": signals["keyword"], "metadataScore": signals["metadata"],
             "qualityScore": signals["quality"] if quality else None,
