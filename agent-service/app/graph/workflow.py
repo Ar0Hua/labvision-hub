@@ -62,10 +62,14 @@ class LangGraphWorkflow:
         config = self._config(context)
         saved = graph.get_state(config)
         resume = bool(saved.next and saved.values.get("task_id") == context.taskId)
-        if resume:
+        completed = bool(not saved.next and saved.values.get('task_id') == context.taskId
+                         and saved.values.get('stage') == 'COMPLETED'
+                         and saved.values.get('query') == context.query
+                         and context.searchScope in (None,saved.values.get('search_scope')))
+        if resume or completed:
             from app.runtime.scope import validate_scope, matches_scope
             validate_scope(context, saved.values.get('search_scope'))
-        if resume and 'retrieve' not in saved.next:
+        if completed or resume and 'retrieve' not in saved.next:
             ids = list(dict.fromkeys(item['pictureId'] for item in saved.values.get('citations',[]) if item.get('pictureId')))
             current = []
             for offset in range(0,len(ids),20):
@@ -74,6 +78,12 @@ class LangGraphWorkflow:
                                if matches_scope(p, saved.values.get('search_scope')))
             if set(current) != set(ids):
                 raise ValueError('checkpoint citations are no longer authorized')
+        if completed:
+            check_active()
+            # Retrieval snapshot of the same task, not a new search turn.
+            return ExecutionResult(answer=saved.values['answer'],citations=saved.values.get('citations',[]),
+                                   candidate_count=saved.values.get('candidate_count',0),
+                                   intent_state=saved.values.get('intent_state'))
         output = graph.invoke(
             None if resume else {"task_id": context.taskId, "query": context.query}, config,
         )

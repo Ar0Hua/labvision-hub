@@ -2,7 +2,8 @@ from dataclasses import dataclass
 import json
 import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
-from app.runtime.planner import TaskPlanner
+from app.runtime.planner import TaskPlanner, TaskPlan
+from app.runtime.task_checkpoint import TaskStepStore
 from app.runtime.scope import resolve_scope
 from app.runtime.visual_checkpoint import VisualBatchCheckpoint
 import time
@@ -71,6 +72,7 @@ class TaskRunner:
     image_token_reservation: int = 8192
     planner: TaskPlanner | None = None
     visual_checkpoint: VisualBatchCheckpoint | None = None
+    task_checkpoint: TaskStepStore | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "TaskRunner":
@@ -88,6 +90,7 @@ class TaskRunner:
             settings.max_input_tokens, settings.max_task_cost, settings.model_prices_json, settings.image_token_reservation,
             planner=TaskPlanner(settings),
             visual_checkpoint=VisualBatchCheckpoint(settings),
+            task_checkpoint=TaskStepStore(settings),
         )
 
     @traced("agent.task")
@@ -147,7 +150,19 @@ class TaskRunner:
             )
             running = True
             phase = "PLANNING"
-            plan = self.planner.plan(context, check_active) if self.planner else None
+            plan = None
+            if self.planner:
+                check_active()
+                store = self.task_checkpoint
+                key = store.key(context,'plan-v1',[TaskPlanner.VERSION,TaskPlanner.SYSTEM]) if store else None
+                saved_plan = store.load(key) if store else None
+                if saved_plan:
+                    plan = TaskPlan.model_validate(saved_plan)
+                    self.java.append_event(signed.task_id, token, 'tool_result', json.dumps({'tool':'task_step_resume','stage':'PLANNING'}))
+                else:
+                    plan = self.planner.plan(context, check_active)
+                    check_active()
+                    if store and plan.task != 'clarify':store.save(key,plan.model_dump())
             if plan and plan.task == "search" and plan.scopeName:
                 try:
                     spaces = [] if plan.scopeName in ("公共图库", "全部授权空间") else self.java.get_accessible_spaces(signed.task_id, token)
@@ -532,12 +547,26 @@ class TaskRunner:
                 mentioned = set(re.findall(r"(?:pictureId|图片\s*ID)\s*[=:：]\s*(\d+)", observation, re.I))
                 successful_ids.extend(p.pictureId for p in inputs if p.pictureId in mentioned)
         check_active()
-        summary = self.vision.summarize(context.query, observations, successful_ids)
+        summary = self._resume_visual_summary(context, observations, successful_ids, check_active)
         check_active()
         if summary:
             emit("\n\n跨批汇总（基于各批摘要）：\n"+summary)
         emit(f"\n\n视觉分析覆盖 {len(set(successful_ids))}/{len(picture_ids)} 张。")
         return ExecutionResult(answer, result.citations, result.candidate_count, result.intent_state)
+
+    def _resume_visual_summary(self, context, observations, picture_ids, check_active):
+        # Called only after every batch has fetched fresh authorized vision inputs.
+        check_active()
+        store = self.task_checkpoint
+        key = store.key(context,'visual-summary-v1',[observations,picture_ids]) if store else None
+        saved = store.load(key) if store else None
+        if isinstance(saved,dict) and isinstance(saved.get('summary'),str):
+            check_active()
+            return saved['summary']
+        summary = self.vision.summarize(context.query,observations,picture_ids)
+        check_active()
+        if store and summary:store.save(key,{'summary':summary})
+        return summary
 
     def _ensure_active(self, signed: ServiceContext, token: str) -> None:
         context = self.java.get_context(signed.task_id, token)
