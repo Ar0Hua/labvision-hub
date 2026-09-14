@@ -68,3 +68,11 @@ def test_cancellation_not_swallowed():
     p, _ = planner([{'task':'search'}])
     def cancelled(): raise RuntimeError('cancelled')
     with pytest.raises(RuntimeError): p.plan(context(), cancelled)
+
+
+@pytest.mark.parametrize('query,name', [('恢复全部授权空间','全部授权空间'),('只看公共图库','公共图库')])
+def test_explicit_scope_controls_do_not_depend_on_model(query,name):
+    p,calls=planner([{'task':'clarify'}])
+    result=p.plan(context(query))
+    assert result.task=='search' and result.scopeName==name
+    assert not calls

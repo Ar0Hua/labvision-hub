@@ -67,6 +67,12 @@ selectedPictures仅表示当前明确选中的图片数。临时图/已选图为
         self.settings, self.client = settings, client
 
     def plan(self, context, check_active=lambda: None):
+        control = context.query.strip().rstrip('。！!')
+        controls = {'只看公共图库': '公共图库', '仅公共图库': '公共图库',
+                    '恢复全部授权空间': '全部授权空间', '回到全部授权空间': '全部授权空间'}
+        if control in controls:
+            check_active()
+            return TaskPlan(task='search', scopeName=controls[control])
         fallback = fallback_plan(context)
         if not self.settings.dashscope_api_key or not self.settings.chat_model:
             return fallback
