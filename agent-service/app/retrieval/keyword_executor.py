@@ -43,6 +43,10 @@ class KeywordSearchExecutor:
         previous_result_ids: list[str],
     ) -> ExecutionResult:
         intent = self._parser.parse(context.query, previous_intent, previous_result_ids)
+        from app.runtime.scope import validate_scope, matches_scope
+        validate_scope(context, context.searchScope)
+        raw_authorize = authorize
+        authorize = lambda ids: [p for p in raw_authorize(ids) if matches_scope(p, context.searchScope)]
         if context.examplePictureIds:
             intent.examplePictureIds = context.examplePictureIds
         check_active()
@@ -65,10 +69,12 @@ class KeywordSearchExecutor:
             "excludePictureIds": intent.excludePictureIds,
         }
         excluded = set(intent.excludePictureIds)
+        if context.searchScope:
+            filters['searchScope'] = context.searchScope
         keyword = [
             picture for picture in search(
                 intent.searchText, intent.category, intent.tags, intent.limit, filters)
-            if picture.pictureId not in excluded
+            if picture.pictureId not in excluded and matches_scope(picture, context.searchScope)
         ]
         check_active()
         metadata = {picture.pictureId: picture for picture in keyword}
@@ -78,6 +84,8 @@ class KeywordSearchExecutor:
             scope_key = "public" if context.spaceId is None else "space:" + context.spaceId
             if context.allSpaces:
                 scope_key = ["public", *["space:" + value for value in context.allowedSpaceIds]]
+            if context.searchScope not in (None, 'all'):
+                scope_key = context.searchScope
             if not context.temporaryImage and not intent.examplePictureIds:
                 try:
                     image_ids = self._semantic.search_visual_text(intent.searchText, scope_key, 20, filters)

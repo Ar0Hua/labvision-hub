@@ -34,6 +34,7 @@ class TaskContext(BaseModel):
     status: str
     temporaryImageId: str | None = None
     temporaryImage: TemporaryInput | None = Field(default=None, exclude=True, repr=False)
+    searchScope: str | None = Field(default=None, pattern=r'^(public|all|space:[1-9][0-9]{0,18})$')
 
 
 class PictureFeatures(BaseModel):
@@ -52,6 +53,7 @@ class PictureFeatures(BaseModel):
 class AccessibleSpace(BaseModel):
     model_config = ConfigDict(extra="forbid")
     spaceName: str
+    spaceId: str | None = None
     spaceType: int | None = None
     permissions: list[str]
     totalCount: int | None = Field(default=None, ge=0)
@@ -167,7 +169,7 @@ class JavaTaskClient:
         body = {"searchText": search_text, "category": category, "tags": tags or [], "limit": limit}
         allowed = ("formats", "createdAfter", "createdBefore", "minWidth", "minHeight",
                    "maxSizeBytes", "sort", "uploaderId", "minAspectRatio", "maxAspectRatio",
-                   "targetColor", "colorTolerance", "brightness")
+                   "targetColor", "colorTolerance", "brightness", "searchScope")
         for key in allowed:
             if filters and key in filters:
                 body[key] = filters[key]

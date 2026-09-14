@@ -37,7 +37,7 @@ class AgentAccessibleSpacesTest {
         assertEquals(1024L,result.get(0).get("totalSize"));
         assertEquals(10L,result.get(0).get("maxCount"));
         assertEquals(2048L,result.get(0).get("maxSize"));
-        assertFalse(result.get(0).containsKey("spaceId"));
+        assertEquals("1",result.get(0).get("spaceId"));
         when(auth.getPermissionList(visible,user)).thenReturn(Collections.emptyList());
         assertTrue(service.viewableSpaces(user).isEmpty());
     }

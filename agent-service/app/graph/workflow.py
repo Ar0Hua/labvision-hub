@@ -21,6 +21,7 @@ def _recent_turns(left: list[TurnSummary], right: list[TurnSummary]) -> list[Tur
 
 
 class WorkflowState(TypedDict, total=False):
+    search_scope: str | None
     task_id: str
     query: str
     stage: str
@@ -61,12 +62,16 @@ class LangGraphWorkflow:
         config = self._config(context)
         saved = graph.get_state(config)
         resume = bool(saved.next and saved.values.get("task_id") == context.taskId)
+        if resume:
+            from app.runtime.scope import validate_scope, matches_scope
+            validate_scope(context, saved.values.get('search_scope'))
         if resume and 'retrieve' not in saved.next:
             ids = list(dict.fromkeys(item['pictureId'] for item in saved.values.get('citations',[]) if item.get('pictureId')))
             current = []
             for offset in range(0,len(ids),20):
                 check_active()
-                current.extend(p.pictureId for p in authorize(ids[offset:offset+20]))
+                current.extend(p.pictureId for p in authorize(ids[offset:offset+20])
+                               if matches_scope(p, saved.values.get('search_scope')))
             if set(current) != set(ids):
                 raise ValueError('checkpoint citations are no longer authorized')
         output = graph.invoke(
@@ -101,6 +106,15 @@ class LangGraphWorkflow:
 
         def retrieve(state: WorkflowState) -> WorkflowState:
             check_active()
+            from app.runtime.scope import validate_scope
+            selected_scope = context.searchScope if context.searchScope is not None else state.get('search_scope')
+            validate_scope(context, selected_scope)
+            effective = context.model_copy(update={'searchScope': selected_scope})
+            scope_changed = selected_scope != state.get('search_scope')
+            previous_intent = state.get('intent_state')
+            if scope_changed and previous_intent:
+                previous_intent = {k:v for k,v in previous_intent.items()
+                                   if k not in ('examplePictureIds', 'excludePictureIds')}
             stateful = getattr(self._executor, "execute_with_state", None)
             if callable(stateful):
                 previous_result_ids = [
@@ -108,13 +122,14 @@ class LangGraphWorkflow:
                     if item.get("pictureId")
                 ][:20]
                 result = stateful(
-                    context, search, authorize, check_active,
-                    state.get("intent_state"), previous_result_ids,
+                    effective, search, authorize, check_active,
+                    previous_intent, [] if scope_changed else previous_result_ids,
                 )
             else:
-                result = self._executor.execute(context, search, authorize, check_active)
+                result = self._executor.execute(effective, search, authorize, check_active)
             return {
                 "stage": "RETRIEVED",
+                "search_scope": selected_scope,
                 "answer": result.answer,
                 "citations": result.citations,
                 "candidate_count": result.candidate_count,

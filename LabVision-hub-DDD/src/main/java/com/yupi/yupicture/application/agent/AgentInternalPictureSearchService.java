@@ -40,6 +40,16 @@ public class AgentInternalPictureSearchService {
         } else {
             query.eq("spaceId", Long.valueOf(spaceId.toString()));
         }
+        // Additional AND restriction only; never replaces the signed authorization predicate above.
+        String searchScope = request.getSearchScope();
+        if (searchScope != null && !"all".equals(searchScope)) {
+            if ("public".equals(searchScope)) query.isNull("spaceId").eq("reviewStatus",1);
+            else {
+                if (!searchScope.matches("space:[1-9][0-9]{0,18}")) invalid();
+                try { query.eq("spaceId", Long.valueOf(searchScope.substring(6))); }
+                catch (NumberFormatException exception) { invalid(); }
+            }
+        }
         String text = trim(request.getSearchText());
         if (text != null) {
             query.and(wrapper -> wrapper.like("name", text)

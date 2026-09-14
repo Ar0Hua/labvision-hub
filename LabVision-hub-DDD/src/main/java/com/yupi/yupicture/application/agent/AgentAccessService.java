@@ -44,6 +44,7 @@ public class AgentAccessService {
             if (granted == null || !granted.contains(SpaceUserPermissionConstant.PICTURE_VIEW)) continue;
             Map<String,Object> item = new LinkedHashMap<>();
             item.put("spaceName", space.getSpaceName() == null ? "未命名空间" : space.getSpaceName());
+            item.put("spaceId", id.toString());
             item.put("spaceType", space.getSpaceType());
             item.put("permissions", new ArrayList<>(granted));
             // 空间实体维护的实时用量计数；未知值保留 null，不冒充零用量。

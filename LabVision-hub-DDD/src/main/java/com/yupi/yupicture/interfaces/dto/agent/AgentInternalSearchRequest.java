@@ -5,6 +5,7 @@ import java.util.List;
 
 @Data
 public class AgentInternalSearchRequest {
+    private String searchScope;
     private String searchText;
     private String category;
     private List<String> tags;

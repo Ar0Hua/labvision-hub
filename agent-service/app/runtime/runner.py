@@ -3,6 +3,7 @@ import json
 import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
 from app.runtime.planner import TaskPlanner
+from app.runtime.scope import resolve_scope
 from app.runtime.visual_checkpoint import VisualBatchCheckpoint
 import time
 from typing import Protocol
@@ -147,6 +148,13 @@ class TaskRunner:
             running = True
             phase = "PLANNING"
             plan = self.planner.plan(context, check_active) if self.planner else None
+            if plan and plan.task == "search" and plan.scopeName:
+                try:
+                    spaces = [] if plan.scopeName in ("公共图库", "全部授权空间") else self.java.get_accessible_spaces(signed.task_id, token)
+                    context.searchScope = resolve_scope(context, plan.scopeName, spaces)
+                except ValueError:
+                    plan.task = "clarify"
+                    plan.needsScopeSelection = True
             if plan:
                 self.java.append_event(signed.task_id, token, "tool_result", json.dumps({
                     "tool": "task_planner", "version": TaskPlanner.VERSION, "plan": plan.model_dump()}))
