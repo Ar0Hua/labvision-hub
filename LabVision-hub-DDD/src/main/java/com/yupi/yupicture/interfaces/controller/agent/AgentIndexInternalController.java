@@ -12,6 +12,19 @@ import java.util.*;
 @RequestMapping("/agent/internal/index/jobs")
 public class AgentIndexInternalController {
     @Resource private AgentPictureIndexJobService jobs;
+    @Resource private com.yupi.yupicture.application.agent.AgentIndexMaintenanceService maintenance;
+
+    @GetMapping("/maintenance/scan")
+    public BaseResponse<List<Map<String,Object>>> scan(@RequestHeader("Authorization") String authorization,
+            @RequestParam(defaultValue="0") long after, @RequestParam(defaultValue="100") int limit) {
+        return ResultUtils.success(maintenance.scan(authorization,after,limit));
+    }
+
+    @PostMapping("/maintenance/enqueue")
+    public BaseResponse<Integer> enqueue(@RequestHeader("Authorization") String authorization,
+            @RequestParam String runId,@RequestBody List<String> pictureIds) {
+        return ResultUtils.success(maintenance.enqueue(authorization,runId,pictureIds));
+    }
 
     @PostMapping("/claim")
     public BaseResponse<List<Map<String,Object>>> claim(
