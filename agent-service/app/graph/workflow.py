@@ -21,6 +21,8 @@ def _recent_turns(left: list[TurnSummary], right: list[TurnSummary]) -> list[Tur
 
 
 class WorkflowState(TypedDict, total=False):
+    latest_result: dict
+    previous_result: dict
     search_scope: str | None
     task_id: str
     query: str
@@ -99,6 +101,27 @@ class LangGraphWorkflow:
     def state(self, context: TaskContext) -> WorkflowState:
         graph = self._compile(context, lambda *_: [], lambda _: [], lambda: None)
         return graph.get_state(self._config(context)).values
+
+    def previous_result(self, context):
+        state = self.state(context)
+        latest = state.get('latest_result')
+        if latest:
+            return state.get('previous_result') if latest.get('taskId') == context.taskId else latest
+        # Compatibility with retrieval checkpoints created before result snapshots existed.
+        if state.get('task_id') != context.taskId and state.get('citations'):
+            return {'taskId':state.get('task_id'), 'scope':state.get('search_scope'),
+                    'pictureIds':[c['pictureId'] for c in state['citations'] if c.get('pictureId')][:20]}
+        return None
+
+    def remember_result(self, context, citations):
+        graph = self._compile(context, lambda *_: [], lambda _: [], lambda: None)
+        config = self._config(context)
+        state = graph.get_state(config).values
+        latest = state.get('latest_result')
+        previous = state.get('previous_result') if latest and latest.get('taskId') == context.taskId else (latest or self.previous_result(context))
+        snapshot = {'taskId':context.taskId, 'scope':context.searchScope,
+                    'pictureIds':list(dict.fromkeys(c['pictureId'] for c in citations if c.get('pictureId')))[:20]}
+        graph.update_state(config, {'latest_result':snapshot, 'previous_result':previous}, as_node='complete')
 
     def _compile(
         self,
@@ -210,3 +233,16 @@ class RedisCheckpointWorkflow:
             return LangGraphWorkflow(self._executor, checkpointer, self._max_steps).execute(
                 context, search, authorize, check_active
             )
+
+    def _result_operation(self, method, context, *args):
+        from langgraph.checkpoint.redis import RedisSaver
+        with RedisSaver.from_conn_string(self._url, ttl={'default_ttl':self._ttl,'refresh_on_read':True}) as saver:
+            saver.setup()
+            workflow = LangGraphWorkflow(self._executor, saver, self._max_steps)
+            return getattr(workflow, method)(context, *args)
+
+    def previous_result(self, context):
+        return self._result_operation('previous_result', context)
+
+    def remember_result(self, context, citations):
+        return self._result_operation('remember_result', context, citations)

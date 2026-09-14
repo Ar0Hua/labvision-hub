@@ -4,6 +4,8 @@ import re
 from app.runtime.routing import general_route, is_search_request, compose_spaces, compose_space_usage
 from app.runtime.planner import TaskPlanner, TaskPlan
 from app.runtime.composite import CompositeWorkflow
+from app.runtime.followup import parse_reference, resolve_reference, FollowupClarification
+from app.runtime.composite import group_values
 from app.runtime.task_checkpoint import TaskStepStore
 from app.runtime.scope import resolve_scope
 from app.runtime.visual_checkpoint import VisualBatchCheckpoint
@@ -131,6 +133,11 @@ class TaskRunner:
         def failure_message(message: str) -> str:
             return (message + f"；失败阶段：{phase}。"
                     + ("已保留此前完成的回答和引用；重试将重新校验权限。" if published_answer else "尚无可展示成果。"))
+        def remember_empty():
+            remember = getattr(self.executor, 'remember_result', None)
+            if callable(remember):
+                check_active()
+                remember(context, [])
         def publish_usage():
             nonlocal usage_written
             if usage_written or not budget.models:
@@ -154,7 +161,25 @@ class TaskRunner:
             running = True
             phase = "PLANNING"
             plan = None
-            if self.planner:
+            reference = None
+            try:
+                reference = parse_reference(context.query)
+                if reference:
+                    check_active()
+                    if context.examplePictureIds or context.temporaryImageId:
+                        raise FollowupClarification('本次已选择图片，同时又引用历史结果，请只保留一种图片输入。')
+                    previous = getattr(self.executor, 'previous_result', None)
+                    snapshot = previous(context) if callable(previous) else None
+                    plan = resolve_reference(context, reference, snapshot,
+                        lambda ids: self.java.authorize_pictures(signed.task_id, token, ids))
+                    check_active()
+            except FollowupClarification as error:
+                publish(str(error))
+                remember_empty()
+                self.java.update_state(signed.task_id, token, status='SUCCEEDED', stage='COMPLETED')
+                outcome = 'succeeded'
+                return
+            if self.planner and plan is None:
                 check_active()
                 store = self.task_checkpoint
                 key = store.key(context,'plan-v1',[TaskPlanner.VERSION,TaskPlanner.SYSTEM]) if store else None
@@ -180,6 +205,7 @@ class TaskRunner:
                     publish("请先选择目标空间再提问，我不会自动扩大检索范围。" if plan.needsScopeSelection else
                             "请明确要查询的空间、图片或统计目标；若要分析图片，请先选择图片。当前不执行批量修改等写操作。")
                     publish_usage()
+                    remember_empty()
                     self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
                     outcome = "succeeded"
                     return
@@ -198,6 +224,7 @@ class TaskRunner:
                 self.java.append_event(signed.task_id, token, "tool_result", json.dumps({"tool": route}))
                 publish(answer)
                 publish_usage()
+                remember_empty()
                 self.java.update_state(signed.task_id, token, status="SUCCEEDED", stage="COMPLETED")
                 outcome = "succeeded"
                 return
@@ -307,9 +334,25 @@ class TaskRunner:
             elif is_group_analysis:
                 selected = self.java.authorize_pictures(
                     signed.task_id, token, context.examplePictureIds)
+                if reference:
+                    mapped = {p.pictureId:p for p in selected}
+                    if any(i not in mapped for i in context.examplePictureIds):
+                        raise ValueError('historical pictures are no longer available')
+                    selected = [mapped[i] for i in context.examplePictureIds]
                 group = PictureGroupAnalyzer.analyze(selected)
                 result = ExecutionResult(
                     group.answer, group.citations, group.picture_count)
+                if reference and '分组' in context.query:
+                    spaces = self.java.get_accessible_spaces(signed.task_id, token) if plan.groupBy == 'space' else []
+                    names = {s.spaceId:s.spaceName for s in spaces}
+                    groups = {}
+                    for p in selected:
+                        for label in group_values(p, plan.groupBy) or ['未知']:
+                            label = names.get(label, label) if plan.groupBy == 'space' else label
+                            groups.setdefault(label, []).append(f'[图片 ID: {p.pictureId}]')
+                    result = ExecutionResult(result.answer + '\n\n### 指定维度分组\n' + '\n'.join(
+                        f'- {name}：' + '、'.join(ids) for name,ids in groups.items()),
+                        result.citations, result.candidate_count)
                 tool_result = {
                     "tool": tool_name,
                     "count": group.picture_count,
@@ -349,6 +392,10 @@ class TaskRunner:
                     json.dumps(citation, ensure_ascii=False, separators=(",", ":")),
                 )
             publish(result.answer)
+            remember = getattr(self.executor, 'remember_result', None)
+            if callable(remember):
+                check_active()
+                remember(context, result.citations)
             if is_temporary_analysis:
                 phase = "TEMPORARY_VISUAL_ANALYSIS"
                 check_active()
